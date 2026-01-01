@@ -93,8 +93,16 @@ namespace LitMotion.Animation.Editor
         VisualElement CreateSettingsPanel()
         {
             var box = CreateBox("Settings");
+            box.Add(new PropertyField(serializedObject.FindProperty("id")));
             box.Add(new PropertyField(serializedObject.FindProperty("autoPlayMode")));
             box.Add(new PropertyField(serializedObject.FindProperty("animationMode")));
+            return box;
+        }
+
+        VisualElement CreateEventsPanel()
+        {
+            var box = CreateBox("Events");
+            box.Add(new PropertyField(serializedObject.FindProperty("onComplete")));
             return box;
         }
 

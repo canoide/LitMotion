@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using LitMotion.Collections;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace LitMotion.Animation
 {
@@ -21,14 +22,20 @@ namespace LitMotion.Animation
             Sequential
         }
 
+        public string id;
+
         [SerializeField] AutoPlayMode autoPlayMode = AutoPlayMode.OnStart;
         [SerializeField] AnimationMode animationMode;
 
         [SerializeReference]
         LitMotionAnimationComponent[] components;
 
+        [Space]
+        public UnityEvent onComplete;
+
         readonly Queue<LitMotionAnimationComponent> queue = new();
         FastListCore<LitMotionAnimationComponent> playingComponents;
+        int activeParallelCount;
 
         [HideInInspector, SerializeField] bool playOnAwake = true;
         [HideInInspector, SerializeField] int version;
@@ -75,6 +82,11 @@ namespace LitMotion.Animation
                     Debug.LogException(ex);
                 }
             }
+            else
+            {
+                // Sequence complete
+                onComplete?.Invoke();
+            }
         }
 
         public void Play()
@@ -110,6 +122,7 @@ namespace LitMotion.Animation
                     MoveNextMotion();
                     break;
                 case AnimationMode.Parallel:
+                    activeParallelCount = 0;
                     foreach (var component in components)
                     {
                         if (component == null) continue;
@@ -123,6 +136,8 @@ namespace LitMotion.Animation
                             if (handle.IsActive())
                             {
                                 handle.Preserve();
+                                activeParallelCount++;
+                                MotionManager.GetManagedDataRef(handle, false).OnCompleteAction += OnParallelComponentComplete;
                             }
 
                             playingComponents.Add(component);
@@ -132,7 +147,21 @@ namespace LitMotion.Animation
                             Debug.LogException(ex);
                         }
                     }
+
+                    if (activeParallelCount == 0)
+                    {
+                        onComplete?.Invoke();
+                    }
                     break;
+            }
+        }
+
+        void OnParallelComponentComplete()
+        {
+            activeParallelCount--;
+            if (activeParallelCount <= 0)
+            {
+                onComplete?.Invoke();
             }
         }
 
