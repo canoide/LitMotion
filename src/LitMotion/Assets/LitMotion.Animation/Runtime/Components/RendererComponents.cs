@@ -75,6 +75,25 @@ namespace LitMotion.Animation.Components
     }
 
     [Serializable]
+    [LitMotionAnimationComponentMenu("Rendering/Material/Property (Color Alpha)")]
+    public sealed class MaterialColorAlphaAnimation : FloatPropertyAnimationComponent<Material>
+    {
+        [SerializeField] string propertyName = "_Color";
+
+        protected override float GetValue(Material target)
+        {
+            return target.GetColor(propertyName).a;
+        }
+
+        protected override void SetValue(Material target, in float value)
+        {
+            var c = target.GetColor(propertyName);
+            c.a = value;
+            target.SetColor(propertyName, c);
+        }
+    }
+
+    [Serializable]
     [LitMotionAnimationComponentMenu("Rendering/Sprite Renderer/Color")]
     public sealed class SpriteRendererColorAnimation : ColorPropertyAnimationComponent<SpriteRenderer>
     {
@@ -86,6 +105,23 @@ namespace LitMotion.Animation.Components
         protected override void SetValue(SpriteRenderer target, in Color value)
         {
             target.color = value;
+        }
+    }
+
+    [Serializable]
+    [LitMotionAnimationComponentMenu("Rendering/Sprite Renderer/Color (Alpha)")]
+    public sealed class SpriteRendererAlphaAnimation : FloatPropertyAnimationComponent<SpriteRenderer>
+    {
+        protected override float GetValue(SpriteRenderer target)
+        {
+            return target.color.a;
+        }
+
+        protected override void SetValue(SpriteRenderer target, in float value)
+        {
+            var c = target.color;
+            c.a = value;
+            target.color = c;
         }
     }
 
