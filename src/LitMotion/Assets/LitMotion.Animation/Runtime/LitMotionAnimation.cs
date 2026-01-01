@@ -86,6 +86,7 @@ namespace LitMotion.Animation
             {
                 // Sequence complete
                 onComplete?.Invoke();
+                playingComponents.Clear();
             }
         }
 
@@ -162,6 +163,7 @@ namespace LitMotion.Animation
             if (activeParallelCount <= 0)
             {
                 onComplete?.Invoke();
+                playingComponents.Clear();
             }
         }
 

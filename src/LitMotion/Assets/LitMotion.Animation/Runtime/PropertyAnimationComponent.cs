@@ -25,6 +25,8 @@ namespace LitMotion.Animation
 
         public override MotionHandle Play()
         {
+            if (target == null) return default;
+
             startValue = GetValue(target);
 
             MotionHandle handle;

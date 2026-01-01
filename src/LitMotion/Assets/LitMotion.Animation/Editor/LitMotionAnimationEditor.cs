@@ -236,10 +236,13 @@ namespace LitMotion.Animation.Editor
 
             buttonGroup.schedule.Execute(() =>
             {
-                var enabled = !IsActive();
-                restartButton.SetEnabled(enabled);
-                stopButton.SetEnabled(enabled);
-                resetButton.SetEnabled(enabled);
+                var isActive = ((LitMotionAnimation)target).IsActive;
+                var isPlaying = ((LitMotionAnimation)target).IsPlaying;
+
+                playButton.SetEnabled(!isPlaying);
+                restartButton.SetEnabled(isActive);
+                stopButton.SetEnabled(isPlaying);
+                resetButton.SetEnabled(isActive);
             })
             .Every(10);
 
