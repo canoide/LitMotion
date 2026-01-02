@@ -16,7 +16,7 @@ namespace LitMotion.Animation.Editor
         AddAnimationComponentDropdown dropdown;
 
         // Track which animation entry is currently requesting an add
-        SerializedProperty pendingComponentsProp;
+        string pendingComponentsPath;
 
         public override VisualElement CreateInspectorGUI()
         {
@@ -26,14 +26,18 @@ namespace LitMotion.Animation.Editor
             dropdown = new AddAnimationComponentDropdown(new());
             dropdown.OnTypeSelected += type =>
             {
-                if (pendingComponentsProp != null)
+                if (!string.IsNullOrEmpty(pendingComponentsPath))
                 {
-                    pendingComponentsProp.InsertArrayElementAtIndex(pendingComponentsProp.arraySize);
-                    var property = pendingComponentsProp.GetArrayElementAtIndex(pendingComponentsProp.arraySize - 1);
-                    property.managedReferenceValue = ReflectionHelper.CreateDefaultInstance(type);
-                    serializedObject.ApplyModifiedProperties();
-                    RefreshAnimationsList();
-                    pendingComponentsProp = null;
+                    var prop = serializedObject.FindProperty(pendingComponentsPath);
+                    if (prop != null)
+                    {
+                        prop.InsertArrayElementAtIndex(prop.arraySize);
+                        var property = prop.GetArrayElementAtIndex(prop.arraySize - 1);
+                        property.managedReferenceValue = ReflectionHelper.CreateDefaultInstance(type);
+                        serializedObject.ApplyModifiedProperties();
+                        RefreshAnimationsList();
+                    }
+                    pendingComponentsPath = null;
                 }
             };
 
@@ -197,9 +201,12 @@ namespace LitMotion.Animation.Editor
             {
                 var compIndex = j; // Capture loop variable
                 var compProp = componentsProp.GetArrayElementAtIndex(j);
-                var view = CreateComponentGUI(compProp);
 
-                // Add explicit Remove button to row (header of view)
+                var wrapper = new VisualElement();
+                var view = CreateComponentGUI(compProp);
+                wrapper.Add(view);
+
+                // Add explicit Remove button to row (overlay on wrapper)
                 var removeActionBtn = new Button(() =>
                 {
                     componentsProp.DeleteArrayElementAtIndex(compIndex);
@@ -213,23 +220,21 @@ namespace LitMotion.Animation.Editor
                         height = 18,
                         position = Position.Absolute,
                         right = 25, // Place next to context menu
-                        top = 2,
+                        top = 4,    // Align with context menu
                         backgroundColor = new Color(0.8f, 0.3f, 0.3f)
                     },
                     tooltip = "Remove Action"
                 };
 
-                // Insert into view header
-                view.Add(removeActionBtn);
-
-                componentsBox.Add(view);
+                wrapper.Add(removeActionBtn);
+                componentsBox.Add(wrapper);
             }
 
             var addCompBtn = new Button();
             addCompBtn.text = "Add Action...";
             addCompBtn.clicked += () =>
             {
-                pendingComponentsProp = componentsProp;
+                pendingComponentsPath = componentsProp.propertyPath;
                 dropdown.Show(addCompBtn.worldBound);
             };
             componentsBox.Add(addCompBtn);
@@ -319,9 +324,12 @@ namespace LitMotion.Animation.Editor
             {
                 var compIndex = j; // Capture loop variable
                 var compProp = componentsProp.GetArrayElementAtIndex(j);
-                var view = CreateComponentGUI(compProp);
 
-                // Add explicit Remove button to row (header of view)
+                var wrapper = new VisualElement();
+                var view = CreateComponentGUI(compProp);
+                wrapper.Add(view);
+
+                // Add explicit Remove button to row (overlay on wrapper)
                 var removeActionBtn = new Button(() =>
                 {
                     componentsProp.DeleteArrayElementAtIndex(compIndex);
@@ -335,21 +343,21 @@ namespace LitMotion.Animation.Editor
                         height = 18,
                         position = Position.Absolute,
                         right = 25,
-                        top = 2,
+                        top = 4,
                         backgroundColor = new Color(0.8f, 0.3f, 0.3f)
                     },
                     tooltip = "Remove Action"
                 };
 
-                view.Add(removeActionBtn);
-                componentsBox.Add(view);
+                wrapper.Add(removeActionBtn);
+                componentsBox.Add(wrapper);
             }
 
             var addCompBtn = new Button();
             addCompBtn.text = "Add Action to Composite...";
             addCompBtn.clicked += () =>
             {
-                pendingComponentsProp = componentsProp;
+                pendingComponentsPath = componentsProp.propertyPath;
                 dropdown.Show(addCompBtn.worldBound);
             };
             componentsBox.Add(addCompBtn);
