@@ -255,18 +255,26 @@ namespace LitMotion.Animation.Editor
             }
             else
             {
-                view.Text = property.FindPropertyRelative("displayName").stringValue;
+                var displayNameProp = property.FindPropertyRelative("displayName");
+                if (displayNameProp != null)
+                {
+                    view.Text = displayNameProp.stringValue;
+                    view.TrackPropertyValue(displayNameProp, x => view.Text = x.stringValue);
+                }
+                else
+                {
+                    view.Text = "Composite";
+                }
 
                 var targetProperty = property.FindPropertyRelative("target");
                 if (targetProperty != null)
                 {
                     view.Icon = GUIHelper.GetComponentIcon(targetProperty.GetPropertyType());
                 }
-
-                view.TrackPropertyValue(property.FindPropertyRelative("displayName"), x =>
+                else if (property.managedReferenceFullTypename.Contains("CompositeAnimation"))
                 {
-                    view.Text = x.stringValue;
-                });
+                    view.Icon = (Texture2D)EditorGUIUtility.IconContent("d_Folder Icon").image;
+                }
 
                 view.Foldout.BindProperty(property);
 
@@ -276,6 +284,14 @@ namespace LitMotion.Animation.Editor
                 {
                     if (SerializedProperty.EqualContents(property, endProperty)) break;
                     if (property.name == "enabled") continue;
+
+                    // Custom drawing for CompositeAnimation children
+                    if (property.name == "children")
+                    {
+                        DrawChildrenList(property, view.Foldout.contentContainer);
+                        continue;
+                    }
+
                     isFirst = false;
 
                     view.Add(new PropertyField(property));
@@ -289,6 +305,54 @@ namespace LitMotion.Animation.Editor
             }
 
             return view;
+        }
+
+        void DrawChildrenList(SerializedProperty componentsProp, VisualElement container)
+        {
+            var componentsBox = new Box();
+            componentsBox.style.marginLeft = 10;
+            componentsBox.style.marginTop = 5;
+            componentsBox.Add(new Label("Children:"));
+
+            for (int j = 0; j < componentsProp.arraySize; j++)
+            {
+                var compProp = componentsProp.GetArrayElementAtIndex(j);
+                var view = CreateComponentGUI(compProp);
+
+                // Add explicit Remove button to row (header of view)
+                var removeActionBtn = new Button(() =>
+                {
+                    componentsProp.DeleteArrayElementAtIndex(j);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList(); // Full refresh to handle nested structure updates
+                })
+                {
+                    style = {
+                        backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_TreeEditor.Trash").image,
+                        width = 18,
+                        height = 18,
+                        position = Position.Absolute,
+                        right = 25,
+                        top = 2,
+                        backgroundColor = new Color(0.8f, 0.3f, 0.3f)
+                    },
+                    tooltip = "Remove Action"
+                };
+
+                view.Add(removeActionBtn);
+                componentsBox.Add(view);
+            }
+
+            var addCompBtn = new Button();
+            addCompBtn.text = "Add Action to Composite...";
+            addCompBtn.clicked += () =>
+            {
+                pendingComponentsProp = componentsProp;
+                dropdown.Show(addCompBtn.worldBound);
+            };
+            componentsBox.Add(addCompBtn);
+
+            container.Add(componentsBox);
         }
     }
 }
