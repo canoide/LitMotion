@@ -45,6 +45,15 @@ namespace LitMotion.Animation
             }
         }
 
+        public void Pause(string id)
+        {
+            var anim = animations.Find(x => x.id == id);
+            if (anim != null)
+            {
+                PauseAnimation(anim);
+            }
+        }
+
         public void Stop(string id)
         {
             var anim = animations.Find(x => x.id == id);
@@ -184,6 +193,19 @@ namespace LitMotion.Animation
             {
                 entry.onComplete?.Invoke();
                 entry.playingComponents.Clear();
+            }
+        }
+
+        void PauseAnimation(LitMotionAnimationEntry entry)
+        {
+            foreach (var component in entry.playingComponents.AsSpan())
+            {
+                var handle = component.TrackedHandle;
+                if (handle.IsActive())
+                {
+                    handle.PlaybackSpeed = 0f;
+                    component.OnPause();
+                }
             }
         }
 

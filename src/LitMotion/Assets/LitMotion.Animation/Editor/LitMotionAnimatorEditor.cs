@@ -75,6 +75,21 @@ namespace LitMotion.Animation.Editor
         void RefreshAnimationsList()
         {
             animationsListContainer.Clear();
+
+            // Check duplicates
+            var ids = new HashSet<string>();
+            var duplicates = new HashSet<string>();
+            for (int i = 0; i < animationsProp.arraySize; i++)
+            {
+                 var id = animationsProp.GetArrayElementAtIndex(i).FindPropertyRelative("id").stringValue;
+                 if (!string.IsNullOrEmpty(id) && !ids.Add(id)) duplicates.Add(id);
+            }
+
+            if (duplicates.Count > 0)
+            {
+                 animationsListContainer.Add(new HelpBox($"Duplicate Animation IDs found: {string.Join(", ", duplicates)}", HelpBoxMessageType.Warning));
+            }
+
             for (int i = 0; i < animationsProp.arraySize; i++)
             {
                 var entryProp = animationsProp.GetArrayElementAtIndex(i);
@@ -109,21 +124,56 @@ namespace LitMotion.Animation.Editor
 
             // Per-animation controls
             var animId = idProp.stringValue; // Initial value
+
             var playBtn = new Button(() => {
                 if (!string.IsNullOrEmpty(animId)) ((LitMotionAnimator)target).Play(animId);
-            }) { text = "Play" };
+            })
+            {
+                style = {
+                    backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_PlayButton").image,
+                    width = 24, height = 24
+                },
+                tooltip = "Play"
+            };
             header.Add(playBtn);
+
+            var pauseBtn = new Button(() => {
+                if (!string.IsNullOrEmpty(animId)) ((LitMotionAnimator)target).Pause(animId);
+            })
+            {
+                style = {
+                    backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_PauseButton").image,
+                    width = 24, height = 24
+                },
+                tooltip = "Pause"
+            };
+            header.Add(pauseBtn);
 
             var stopBtn = new Button(() => {
                 if (!string.IsNullOrEmpty(animId)) ((LitMotionAnimator)target).Stop(animId);
-            }) { text = "Stop" };
+            })
+            {
+                style = {
+                    backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_PreMatQuad").image,
+                    width = 24, height = 24
+                },
+                tooltip = "Stop"
+            };
             header.Add(stopBtn);
 
             var removeBtn = new Button(() => {
                 animationsProp.DeleteArrayElementAtIndex(index);
                 serializedObject.ApplyModifiedProperties();
                 RefreshAnimationsList();
-            }) { text = "X", style = { backgroundColor = new Color(0.8f, 0.3f, 0.3f) } };
+            })
+            {
+                style = {
+                    backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_TreeEditor.Trash").image,
+                    width = 24, height = 24,
+                    backgroundColor = new Color(0.8f, 0.3f, 0.3f)
+                },
+                tooltip = "Remove Animation"
+            };
             header.Add(removeBtn);
 
             box.Add(header);
@@ -156,14 +206,16 @@ namespace LitMotion.Animation.Editor
                     RefreshAnimationsList();
                 })
                 {
-                    text = "X",
                     style = {
-                        width = 20,
+                        backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_TreeEditor.Trash").image,
+                        width = 18,
                         height = 18,
                         position = Position.Absolute,
                         right = 25, // Place next to context menu
-                        top = 2
-                    }
+                        top = 2,
+                        backgroundColor = new Color(0.8f, 0.3f, 0.3f)
+                    },
+                    tooltip = "Remove Action"
                 };
 
                 // Insert into view header
