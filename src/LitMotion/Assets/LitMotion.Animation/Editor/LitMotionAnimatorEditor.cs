@@ -97,21 +97,39 @@ namespace LitMotion.Animation.Editor
             box.style.borderTopColor = borderColor;
             box.style.borderBottomColor = borderColor;
 
-            var header = new VisualElement { style = { flexDirection = FlexDirection.Row, justifyContent = Justify.SpaceBetween } };
+            var header = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
             var idProp = entryProp.FindPropertyRelative("id");
-            var idField = new PropertyField(idProp, "");
+            // Use explicit TextField to ensure visibility
+            var idField = new TextField { bindingPath = idProp.propertyPath };
             idField.style.flexGrow = 1;
+            idField.Bind(entryProp.serializedObject);
+
             header.Add(new Label($"#{index} "));
             header.Add(idField);
+
+            // Per-animation controls
+            var animId = idProp.stringValue; // Initial value
+            var playBtn = new Button(() => {
+                if (!string.IsNullOrEmpty(animId)) ((LitMotionAnimator)target).Play(animId);
+            }) { text = "Play" };
+            header.Add(playBtn);
+
+            var stopBtn = new Button(() => {
+                if (!string.IsNullOrEmpty(animId)) ((LitMotionAnimator)target).Stop(animId);
+            }) { text = "Stop" };
+            header.Add(stopBtn);
 
             var removeBtn = new Button(() => {
                 animationsProp.DeleteArrayElementAtIndex(index);
                 serializedObject.ApplyModifiedProperties();
                 RefreshAnimationsList();
-            }) { text = "X" };
+            }) { text = "X", style = { backgroundColor = new Color(0.8f, 0.3f, 0.3f) } };
             header.Add(removeBtn);
 
             box.Add(header);
+
+            // Update ID local var when field changes so buttons work
+            idField.RegisterValueChangedCallback(evt => animId = evt.newValue);
 
             // Foldout for details
             var foldout = new Foldout { text = "Settings & Actions", value = false };
@@ -130,18 +148,26 @@ namespace LitMotion.Animation.Editor
                 var compProp = componentsProp.GetArrayElementAtIndex(j);
                 var view = CreateComponentGUI(compProp);
 
-                // Add remove button for component
-                // (Simplified Context Menu)
-                view.AddManipulator(new ContextualMenuManipulator(evt =>
+                // Add explicit Remove button to row (header of view)
+                var removeActionBtn = new Button(() =>
                 {
-                    evt.menu.AppendAction("Remove Action", x =>
-                    {
-                        componentsProp.DeleteArrayElementAtIndex(j); // Capture index? Careful with closures in loops
-                        // Refreshing list is safest
-                        serializedObject.ApplyModifiedProperties();
-                        RefreshAnimationsList();
-                    });
-                }));
+                    componentsProp.DeleteArrayElementAtIndex(j);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList();
+                })
+                {
+                    text = "X",
+                    style = {
+                        width = 20,
+                        height = 18,
+                        position = Position.Absolute,
+                        right = 25, // Place next to context menu
+                        top = 2
+                    }
+                };
+
+                // Insert into view header
+                view.Add(removeActionBtn);
 
                 componentsBox.Add(view);
             }
