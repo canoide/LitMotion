@@ -195,13 +195,14 @@ namespace LitMotion.Animation.Editor
 
             for (int j = 0; j < componentsProp.arraySize; j++)
             {
+                var compIndex = j; // Capture loop variable
                 var compProp = componentsProp.GetArrayElementAtIndex(j);
                 var view = CreateComponentGUI(compProp);
 
                 // Add explicit Remove button to row (header of view)
                 var removeActionBtn = new Button(() =>
                 {
-                    componentsProp.DeleteArrayElementAtIndex(j);
+                    componentsProp.DeleteArrayElementAtIndex(compIndex);
                     serializedObject.ApplyModifiedProperties();
                     RefreshAnimationsList();
                 })
@@ -316,13 +317,14 @@ namespace LitMotion.Animation.Editor
 
             for (int j = 0; j < componentsProp.arraySize; j++)
             {
+                var compIndex = j; // Capture loop variable
                 var compProp = componentsProp.GetArrayElementAtIndex(j);
                 var view = CreateComponentGUI(compProp);
 
                 // Add explicit Remove button to row (header of view)
                 var removeActionBtn = new Button(() =>
                 {
-                    componentsProp.DeleteArrayElementAtIndex(j);
+                    componentsProp.DeleteArrayElementAtIndex(compIndex);
                     serializedObject.ApplyModifiedProperties();
                     RefreshAnimationsList(); // Full refresh to handle nested structure updates
                 })
