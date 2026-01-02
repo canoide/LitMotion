@@ -9,19 +9,6 @@ namespace LitMotion.Animation
     [AddComponentMenu("LitMotion Animation")]
     public sealed class LitMotionAnimation : MonoBehaviour, ISerializationCallbackReceiver
     {
-        enum AutoPlayMode
-        {
-            None,
-            OnStart,
-            OnEnable
-        }
-
-        enum AnimationMode
-        {
-            Parallel,
-            Sequential
-        }
-
         public string id;
 
         [SerializeField] AutoPlayMode autoPlayMode = AutoPlayMode.OnStart;
