@@ -92,7 +92,10 @@ namespace LitMotion.Animation.Editor
             box.style.paddingBottom = 5;
             box.style.borderTopWidth = 1;
             box.style.borderBottomWidth = 1;
-            box.style.borderColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+
+            var borderColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            box.style.borderTopColor = borderColor;
+            box.style.borderBottomColor = borderColor;
 
             var header = new VisualElement { style = { flexDirection = FlexDirection.Row, justifyContent = Justify.SpaceBetween } };
             var idProp = entryProp.FindPropertyRelative("id");
