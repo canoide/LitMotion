@@ -19,6 +19,15 @@ namespace LitMotion.Animation.Editor
             root = new VisualElement();
             componentsProp = serializedObject.FindProperty("components");
 
+            var listContainer = new VisualElement();
+
+            // Helper to refresh
+            void RefreshList()
+            {
+                listContainer.Clear();
+                DrawComponentsList(componentsProp, listContainer);
+            }
+
             dropdown = new AddAnimationComponentDropdown(new());
             dropdown.OnTypeSelected += type =>
             {
@@ -40,15 +49,7 @@ namespace LitMotion.Animation.Editor
 
             root.Add(new PropertyField(serializedObject.FindProperty("mode")));
 
-            var listContainer = new VisualElement();
             root.Add(listContainer);
-
-            // Helper to refresh
-            void RefreshList()
-            {
-                listContainer.Clear();
-                DrawComponentsList(componentsProp, listContainer);
-            }
 
             // Initial Draw
             RefreshList();
@@ -96,14 +97,14 @@ namespace LitMotion.Animation.Editor
                 componentsBox.Add(wrapper);
             }
 
-            var addBtn = new Button(() =>
+            var addBtn = new Button();
+            addBtn.text = "Add Action...";
+            addBtn.style.height = 25;
+            addBtn.style.marginTop = 5;
+            addBtn.clicked += () =>
             {
                 pendingComponentsPath = listProp.propertyPath;
                 dropdown.Show(addBtn.worldBound);
-            })
-            {
-                text = "Add Action...",
-                style = { height = 25, marginTop = 5 }
             };
             componentsBox.Add(addBtn);
 
