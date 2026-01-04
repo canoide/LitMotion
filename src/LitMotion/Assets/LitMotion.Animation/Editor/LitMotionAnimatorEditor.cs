@@ -15,31 +15,10 @@ namespace LitMotion.Animation.Editor
         VisualElement animationsListContainer;
         AddAnimationComponentDropdown dropdown;
 
-        // Track which animation entry is currently requesting an add
-        string pendingComponentsPath;
-
         public override VisualElement CreateInspectorGUI()
         {
             root = new VisualElement();
             animationsProp = serializedObject.FindProperty("animations");
-
-            dropdown = new AddAnimationComponentDropdown(new());
-            dropdown.OnTypeSelected += type =>
-            {
-                if (!string.IsNullOrEmpty(pendingComponentsPath))
-                {
-                    var prop = serializedObject.FindProperty(pendingComponentsPath);
-                    if (prop != null)
-                    {
-                        prop.InsertArrayElementAtIndex(prop.arraySize);
-                        var property = prop.GetArrayElementAtIndex(prop.arraySize - 1);
-                        property.managedReferenceValue = ReflectionHelper.CreateDefaultInstance(type);
-                        serializedObject.ApplyModifiedProperties();
-                        RefreshAnimationsList();
-                    }
-                    pendingComponentsPath = null;
-                }
-            };
 
             var settingsBox = new Box();
             settingsBox.style.paddingBottom = 10;
@@ -234,8 +213,22 @@ namespace LitMotion.Animation.Editor
             addCompBtn.text = "Add Action...";
             addCompBtn.clicked += () =>
             {
-                pendingComponentsPath = componentsProp.propertyPath;
-                dropdown.Show(addCompBtn.worldBound);
+                var localDropdown = new AddAnimationComponentDropdown(new UnityEditor.IMGUI.Controls.AdvancedDropdownState());
+                var path = componentsProp.propertyPath;
+                localDropdown.OnTypeSelected += type =>
+                {
+                    serializedObject.Update();
+                    var prop = serializedObject.FindProperty(path);
+                    if (prop != null && prop.isArray)
+                    {
+                        prop.InsertArrayElementAtIndex(prop.arraySize);
+                        var property = prop.GetArrayElementAtIndex(prop.arraySize - 1);
+                        property.managedReferenceValue = ReflectionHelper.CreateDefaultInstance(type);
+                        serializedObject.ApplyModifiedProperties();
+                        RefreshAnimationsList();
+                    }
+                };
+                localDropdown.Show(addCompBtn.worldBound);
             };
             componentsBox.Add(addCompBtn);
 
@@ -281,6 +274,10 @@ namespace LitMotion.Animation.Editor
                 {
                     view.Icon = (Texture2D)EditorGUIUtility.IconContent("d_Folder Icon").image;
                 }
+                else if (property.managedReferenceFullTypename.Contains("PresetAnimation"))
+                {
+                    view.Icon = (Texture2D)EditorGUIUtility.IconContent("d_ScriptableObject Icon").image;
+                }
 
                 view.Foldout.BindProperty(property);
 
@@ -301,6 +298,18 @@ namespace LitMotion.Animation.Editor
                     isFirst = false;
 
                     view.Add(new PropertyField(property));
+
+                    // Custom drawing for PresetAnimation embedded inspector
+                    if (property.name == "preset" && property.objectReferenceValue != null)
+                    {
+                        var so = new SerializedObject(property.objectReferenceValue);
+                        so.Update();
+                        var comps = so.FindProperty("components");
+                        if (comps != null)
+                        {
+                            DrawChildrenList(so, comps, view.Foldout.contentContainer);
+                        }
+                    }
                 }
 
                 var enabledProperty = property.FindPropertyRelative("enabled");
@@ -313,17 +322,19 @@ namespace LitMotion.Animation.Editor
             return view;
         }
 
-        void DrawChildrenList(SerializedProperty componentsProp, VisualElement container)
+        void DrawChildrenList(SerializedObject targetObject, SerializedProperty listProp, VisualElement container)
         {
             var componentsBox = new Box();
             componentsBox.style.marginLeft = 10;
             componentsBox.style.marginTop = 5;
-            componentsBox.Add(new Label("Children:"));
 
-            for (int j = 0; j < componentsProp.arraySize; j++)
+            // Distinguish between Composite and Preset labeling logic if desired, but "Actions" works for both.
+            componentsBox.Add(new Label("Actions:"));
+
+            for (int j = 0; j < listProp.arraySize; j++)
             {
                 var compIndex = j; // Capture loop variable
-                var compProp = componentsProp.GetArrayElementAtIndex(j);
+                var compProp = listProp.GetArrayElementAtIndex(j);
 
                 var wrapper = new VisualElement();
                 var view = CreateComponentGUI(compProp);
@@ -332,8 +343,8 @@ namespace LitMotion.Animation.Editor
                 // Add explicit Remove button to row (overlay on wrapper)
                 var removeActionBtn = new Button(() =>
                 {
-                    componentsProp.DeleteArrayElementAtIndex(compIndex);
-                    serializedObject.ApplyModifiedProperties();
+                    listProp.DeleteArrayElementAtIndex(compIndex);
+                    targetObject.ApplyModifiedProperties();
                     RefreshAnimationsList(); // Full refresh to handle nested structure updates
                 })
                 {
@@ -354,11 +365,25 @@ namespace LitMotion.Animation.Editor
             }
 
             var addCompBtn = new Button();
-            addCompBtn.text = "Add Action to Composite...";
+            addCompBtn.text = "Add Action...";
             addCompBtn.clicked += () =>
             {
-                pendingComponentsPath = componentsProp.propertyPath;
-                dropdown.Show(addCompBtn.worldBound);
+                var localDropdown = new AddAnimationComponentDropdown(new UnityEditor.IMGUI.Controls.AdvancedDropdownState());
+                var path = listProp.propertyPath;
+                localDropdown.OnTypeSelected += type =>
+                {
+                    targetObject.Update();
+                    var prop = targetObject.FindProperty(path);
+                    if (prop != null && prop.isArray)
+                    {
+                        prop.InsertArrayElementAtIndex(prop.arraySize);
+                        var property = prop.GetArrayElementAtIndex(prop.arraySize - 1);
+                        property.managedReferenceValue = ReflectionHelper.CreateDefaultInstance(type);
+                        targetObject.ApplyModifiedProperties();
+                        RefreshAnimationsList();
+                    }
+                };
+                localDropdown.Show(addCompBtn.worldBound);
             };
             componentsBox.Add(addCompBtn);
 
