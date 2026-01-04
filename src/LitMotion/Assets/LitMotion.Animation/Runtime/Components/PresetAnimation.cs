@@ -50,6 +50,21 @@ namespace LitMotion.Animation.Components
         void BindTarget(LitMotionAnimationComponent component, GameObject root)
         {
             var type = component.GetType();
+
+            // Try to resolve target by name (for hierarchy support in Presets)
+            GameObject resolvedRoot = root;
+            var nameField = GetField(type, "targetName");
+            if (nameField != null)
+            {
+                var targetName = nameField.GetValue(component) as string;
+                if (!string.IsNullOrEmpty(targetName))
+                {
+                    var child = root.transform.Find(targetName);
+                    if (child != null) resolvedRoot = child.gameObject;
+                    else Debug.LogWarning($"[PresetAnimation] Child '{targetName}' not found on '{root.name}'");
+                }
+            }
+
             var field = GetField(type, "target");
 
             if (field != null)
@@ -58,11 +73,11 @@ namespace LitMotion.Animation.Components
 
                 if (typeof(GameObject).IsAssignableFrom(targetType))
                 {
-                    field.SetValue(component, root);
+                    field.SetValue(component, resolvedRoot);
                 }
                 else if (typeof(UnityEngine.Component).IsAssignableFrom(targetType))
                 {
-                    var comp = root.GetComponent(targetType);
+                    var comp = resolvedRoot.GetComponent(targetType);
                     if (comp != null)
                     {
                         field.SetValue(component, comp);
