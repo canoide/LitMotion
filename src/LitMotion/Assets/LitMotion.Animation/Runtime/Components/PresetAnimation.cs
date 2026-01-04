@@ -1,15 +1,24 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
 namespace LitMotion.Animation.Components
 {
     [Serializable]
+    public struct AnimationBinding
+    {
+        public string id;
+        public UnityEngine.Object target;
+    }
+
+    [Serializable]
     [LitMotionAnimationComponentMenu("General/Preset")]
     public sealed class PresetAnimation : LitMotionAnimationComponent
     {
         public LitMotionAnimationPreset preset;
         public GameObject target;
+        public List<AnimationBinding> bindings;
 
         public override MotionHandle Play()
         {
@@ -50,9 +59,64 @@ namespace LitMotion.Animation.Components
         void BindTarget(LitMotionAnimationComponent component, GameObject root)
         {
             var type = component.GetType();
-
-            // Try to resolve target by name (for hierarchy support in Presets)
             GameObject resolvedRoot = root;
+
+            // 1. Try Binding ID (Robust Slot System)
+            var bindingIdField = GetField(type, "bindingId");
+            if (bindingIdField != null)
+            {
+                var id = bindingIdField.GetValue(component) as string;
+                if (!string.IsNullOrEmpty(id) && bindings != null)
+                {
+                    // Find binding in local list
+                    var binding = bindings.Find(x => x.id == id);
+                    if (binding.target != null)
+                    {
+                        // Use the bound object directly!
+                        // Need to check if it matches target type (GameObject vs Component)
+
+                        // We set it to resolvedRoot logic?
+                        // No, if binding target is a Component, we might need to extract GameObject if the animation wants GameObject?
+                        // Or if animation wants Component, and binding is GameObject?
+                        // Let's handle it at assignment time below.
+
+                        // For simplicity, let's assume the binding target IS what we want to inject.
+                        // But PropertyAnimationComponent expects TObject.
+                        // We use reflection to set 'target' field directly.
+
+                        var targetField = GetField(type, "target");
+                        if (targetField != null)
+                        {
+                            var destType = targetField.FieldType;
+                            var srcObj = binding.target;
+
+                            // Compatibility check
+                            if (destType.IsInstanceOfType(srcObj))
+                            {
+                                targetField.SetValue(component, srcObj);
+                                return; // Done! Explicit binding wins.
+                            }
+                            else if (srcObj is GameObject go && typeof(Component).IsAssignableFrom(destType))
+                            {
+                                // If bound object is GO, but we need Component, try GetComponent
+                                var comp = go.GetComponent(destType);
+                                if (comp != null)
+                                {
+                                    targetField.SetValue(component, comp);
+                                    return;
+                                }
+                            }
+                            else if (srcObj is Component compSource && destType == typeof(GameObject))
+                            {
+                                targetField.SetValue(component, compSource.gameObject);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Try Target Name (Hierarchy Path - Fallback)
             var nameField = GetField(type, "targetName");
             if (nameField != null)
             {
@@ -61,10 +125,11 @@ namespace LitMotion.Animation.Components
                 {
                     var child = root.transform.Find(targetName);
                     if (child != null) resolvedRoot = child.gameObject;
-                    else Debug.LogWarning($"[PresetAnimation] Child '{targetName}' not found on '{root.name}'");
+                    // else warn?
                 }
             }
 
+            // 3. Auto-Bind to Root (Default behavior)
             var field = GetField(type, "target");
 
             if (field != null)
