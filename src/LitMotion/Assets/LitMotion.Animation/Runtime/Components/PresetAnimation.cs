@@ -20,19 +20,21 @@ namespace LitMotion.Animation.Components
         public GameObject target;
         public List<AnimationBinding> bindings;
 
+        LitMotionAnimationPreset runtimePreset;
+
         public override MotionHandle Play()
         {
             if (preset == null) return default;
             if (target == null) return default;
 
             // Clone the preset to ensure unique component instances (stateful)
-            var clone = UnityEngine.Object.Instantiate(preset);
+            runtimePreset = UnityEngine.Object.Instantiate(preset);
 
             var builder = LSequence.Create();
 
-            if (clone.components != null)
+            if (runtimePreset.components != null)
             {
-                foreach (var component in clone.components)
+                foreach (var component in runtimePreset.components)
                 {
                     if (component == null || !component.Enabled) continue;
 
@@ -42,7 +44,7 @@ namespace LitMotion.Animation.Components
 
                     if (!handle.IsActive()) continue;
 
-                    if (clone.mode == AnimationMode.Sequential)
+                    if (runtimePreset.mode == AnimationMode.Sequential)
                     {
                         builder.Append(handle);
                     }
@@ -54,6 +56,18 @@ namespace LitMotion.Animation.Components
             }
 
             return builder.Run();
+        }
+
+        public override void OnStop()
+        {
+            if (runtimePreset != null && runtimePreset.components != null)
+            {
+                foreach (var component in runtimePreset.components)
+                {
+                    if (component != null) component.OnStop();
+                }
+                runtimePreset = null;
+            }
         }
 
         void BindTarget(LitMotionAnimationComponent component, GameObject root)

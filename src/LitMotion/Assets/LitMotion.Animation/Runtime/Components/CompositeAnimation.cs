@@ -60,5 +60,16 @@ namespace LitMotion.Animation.Components
             // LSequence.Run() with empty creates a dummy.
             return builder.Run();
         }
+
+        public override void OnStop()
+        {
+            if (children != null)
+            {
+                foreach (var child in children)
+                {
+                    if (child != null) child.OnStop();
+                }
+            }
+        }
     }
 }
