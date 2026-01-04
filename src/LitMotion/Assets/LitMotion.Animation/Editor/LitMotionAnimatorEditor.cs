@@ -187,11 +187,12 @@ namespace LitMotion.Animation.Editor
                 var compIndex = j; // Capture loop variable
                 var compProp = componentsProp.GetArrayElementAtIndex(j);
 
-                var wrapper = new VisualElement();
-                var view = CreateComponentGUI(compProp);
-                wrapper.Add(view);
+                var row = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 2 } };
 
-                // Add explicit Remove button to row (overlay on wrapper)
+                var view = CreateComponentGUI(compProp);
+                view.style.flexGrow = 1;
+                row.Add(view);
+
                 var removeActionBtn = new Button(() =>
                 {
                     componentsProp.DeleteArrayElementAtIndex(compIndex);
@@ -199,20 +200,17 @@ namespace LitMotion.Animation.Editor
                     RefreshAnimationsList();
                 })
                 {
+                    text = "X",
                     style = {
-                        backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_TreeEditor.Trash").image,
-                        width = 18,
-                        height = 18,
-                        position = Position.Absolute,
-                        right = 25, // Place next to context menu
-                        top = 4,    // Align with context menu
-                        backgroundColor = new Color(0.8f, 0.3f, 0.3f)
+                        width = 20,
+                        backgroundColor = new Color(0.8f, 0.3f, 0.3f),
+                        alignSelf = Align.FlexStart
                     },
                     tooltip = "Remove Action"
                 };
 
-                wrapper.Add(removeActionBtn);
-                componentsBox.Add(wrapper);
+                row.Add(removeActionBtn);
+                componentsBox.Add(row);
             }
 
             var addCompBtn = new Button();
@@ -351,11 +349,12 @@ namespace LitMotion.Animation.Editor
                 var compIndex = j; // Capture loop variable
                 var compProp = listProp.GetArrayElementAtIndex(j);
 
-                var wrapper = new VisualElement { style = { width = Length.Percent(100) } };
-                var view = CreateComponentGUI(compProp);
-                wrapper.Add(view);
+                var row = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 2 } };
 
-                // Add explicit Remove button to row (overlay on wrapper)
+                var view = CreateComponentGUI(compProp);
+                view.style.flexGrow = 1;
+                row.Add(view);
+
                 var removeActionBtn = new Button(() =>
                 {
                     listProp.DeleteArrayElementAtIndex(compIndex);
@@ -363,20 +362,17 @@ namespace LitMotion.Animation.Editor
                     RefreshAnimationsList(); // Full refresh to handle nested structure updates
                 })
                 {
+                    text = "X",
                     style = {
-                        backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_TreeEditor.Trash").image,
-                        width = 18,
-                        height = 18,
-                        position = Position.Absolute,
-                        right = 25,
-                        top = 4,
-                        backgroundColor = new Color(0.8f, 0.3f, 0.3f)
+                        width = 20,
+                        backgroundColor = new Color(0.8f, 0.3f, 0.3f),
+                        alignSelf = Align.FlexStart
                     },
                     tooltip = "Remove Action"
                 };
 
-                wrapper.Add(removeActionBtn);
-                componentsBox.Add(wrapper);
+                row.Add(removeActionBtn);
+                componentsBox.Add(row);
             }
 
             var addCompBtn = new Button();

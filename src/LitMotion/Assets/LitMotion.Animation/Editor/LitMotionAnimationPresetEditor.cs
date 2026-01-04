@@ -68,9 +68,11 @@ namespace LitMotion.Animation.Editor
                 int index = i;
                 var prop = listProp.GetArrayElementAtIndex(i);
 
-                var wrapper = new VisualElement { style = { width = Length.Percent(100) } };
+                var row = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 2 } };
+
                 var view = CreateComponentGUI(prop);
-                wrapper.Add(view);
+                view.style.flexGrow = 1;
+                row.Add(view);
 
                 var removeBtn = new Button(() =>
                 {
@@ -81,20 +83,17 @@ namespace LitMotion.Animation.Editor
                     DrawComponentsList(listProp, container);
                 })
                 {
+                    text = "X",
                     style = {
-                        backgroundImage = (Texture2D)EditorGUIUtility.IconContent("d_TreeEditor.Trash").image,
-                        width = 18,
-                        height = 18,
-                        position = Position.Absolute,
-                        right = 25,
-                        top = 4,
-                        backgroundColor = new Color(0.8f, 0.3f, 0.3f)
+                        width = 20,
+                        backgroundColor = new Color(0.8f, 0.3f, 0.3f),
+                        alignSelf = Align.FlexStart
                     },
                     tooltip = "Remove Action"
                 };
 
-                wrapper.Add(removeBtn);
-                componentsBox.Add(wrapper);
+                row.Add(removeBtn);
+                componentsBox.Add(row);
             }
 
             var addBtn = new Button();
