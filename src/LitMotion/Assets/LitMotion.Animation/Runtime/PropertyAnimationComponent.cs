@@ -41,7 +41,8 @@ namespace LitMotion.Animation
                 handle = LMotion.Create<TValue, TOptions, TAdapter>(settings)
                     .Bind(this, (x, state) =>
                     {
-                        state.SetValue(target, state.GetRelativeValue(state.startValue, x));
+                        if (state.target == null) return;
+                        state.SetValue(state.target, state.GetRelativeValue(state.startValue, x));
                     });
             }
             else
@@ -49,7 +50,8 @@ namespace LitMotion.Animation
                 handle = LMotion.Create<TValue, TOptions, TAdapter>(settings)
                     .Bind(this, (x, state) =>
                     {
-                        state.SetValue(target, x);
+                        if (state.target == null) return;
+                        state.SetValue(state.target, x);
                     });
             }
 
