@@ -288,6 +288,7 @@ namespace LitMotion.Animation.Editor
                 {
                     if (SerializedProperty.EqualContents(p, endProperty)) break;
                     if (p.name == "enabled") continue;
+                    if (p.name == "bindings") continue; // Hide raw bindings list
 
                     // Custom drawing for CompositeAnimation children
                     if (p.name == "children")
@@ -300,9 +301,11 @@ namespace LitMotion.Animation.Editor
 
                     view.Add(new PropertyField(p));
 
-                    // Custom drawing for PresetAnimation embedded inspector
+                    // Custom drawing for PresetAnimation embedded inspector and Bindings
                     if (p.name == "preset" && p.objectReferenceValue != null)
                     {
+                        DrawPresetBindings(p.objectReferenceValue as LitMotionAnimationPreset, property.FindPropertyRelative("bindings"), view.Foldout.contentContainer);
+
                         var so = new SerializedObject(p.objectReferenceValue);
                         so.Update();
                         var comps = so.FindProperty("components");
@@ -389,6 +392,101 @@ namespace LitMotion.Animation.Editor
             componentsBox.Add(addCompBtn);
 
             container.Add(componentsBox);
+        }
+
+        void DrawPresetBindings(LitMotionAnimationPreset preset, SerializedProperty bindingsProp, VisualElement container)
+        {
+            if (preset == null || preset.components == null) return;
+
+            var requiredBindings = new List<(string key, Type type)>();
+
+            foreach (var c in preset.components)
+            {
+                if (c == null) continue;
+                var t = c.GetType();
+                var targetField = GetField(t, "target");
+                if (targetField != null)
+                {
+                    string key = c.DisplayName;
+                    var bindField = GetField(t, "bindingId");
+                    if (bindField != null)
+                    {
+                        var bId = bindField.GetValue(c) as string;
+                        if (!string.IsNullOrEmpty(bId)) key = bId;
+                    }
+                    requiredBindings.Add((key, targetField.FieldType));
+                }
+            }
+
+            if (requiredBindings.Count > 0)
+            {
+                var box = new Box { style = { marginTop = 5, marginBottom = 5, paddingLeft = 5, paddingRight = 5, paddingTop = 5, paddingBottom = 5 } };
+                box.Add(new Label("Required Bindings:") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
+
+                foreach (var req in requiredBindings)
+                {
+                    SerializedProperty match = null;
+                    for (int i = 0; i < bindingsProp.arraySize; i++)
+                    {
+                        var el = bindingsProp.GetArrayElementAtIndex(i);
+                        if (el.FindPropertyRelative("id").stringValue == req.key)
+                        {
+                            match = el;
+                            break;
+                        }
+                    }
+
+                    var field = new ObjectField(req.key) { objectType = req.type, allowSceneObjects = true };
+                    if (match != null)
+                    {
+                        field.value = match.FindPropertyRelative("target").objectReferenceValue;
+                    }
+
+                    field.RegisterValueChangedCallback(evt =>
+                    {
+                        bindingsProp.serializedObject.Update();
+                        if (match == null) // Check again in case it was added by another callback? No, UI is synchronous usually.
+                        {
+                            // Need to find again because arraySize might changed? No, simplistic approach.
+                            // Re-finding is safer if list changed.
+                            match = null;
+                            for (int i = 0; i < bindingsProp.arraySize; i++)
+                            {
+                                var el = bindingsProp.GetArrayElementAtIndex(i);
+                                if (el.FindPropertyRelative("id").stringValue == req.key)
+                                {
+                                    match = el;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (match == null)
+                        {
+                            bindingsProp.InsertArrayElementAtIndex(bindingsProp.arraySize);
+                            match = bindingsProp.GetArrayElementAtIndex(bindingsProp.arraySize - 1);
+                            match.FindPropertyRelative("id").stringValue = req.key;
+                        }
+
+                        match.FindPropertyRelative("target").objectReferenceValue = evt.newValue;
+                        bindingsProp.serializedObject.ApplyModifiedProperties();
+                    });
+
+                    box.Add(field);
+                }
+                container.Add(box);
+            }
+        }
+
+        System.Reflection.FieldInfo GetField(Type type, string name)
+        {
+            while (type != null && type != typeof(object))
+            {
+                var f = type.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (f != null) return f;
+                type = type.BaseType;
+            }
+            return null;
         }
     }
 }

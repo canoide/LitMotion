@@ -61,75 +61,51 @@ namespace LitMotion.Animation.Components
             var type = component.GetType();
             GameObject resolvedRoot = root;
 
-            // 1. Try Binding ID (Robust Slot System)
+            // Determine Binding Key (Explicit ID or DisplayName)
+            string bindingKey = component.DisplayName;
             var bindingIdField = GetField(type, "bindingId");
             if (bindingIdField != null)
             {
-                var id = bindingIdField.GetValue(component) as string;
-                if (!string.IsNullOrEmpty(id) && bindings != null)
+                var explicitId = bindingIdField.GetValue(component) as string;
+                if (!string.IsNullOrEmpty(explicitId)) bindingKey = explicitId;
+            }
+
+            // 1. Try Binding by Key
+            if (bindings != null)
+            {
+                var binding = bindings.Find(x => x.id == bindingKey);
+                if (binding.target != null)
                 {
-                    // Find binding in local list
-                    var binding = bindings.Find(x => x.id == id);
-                    if (binding.target != null)
+                    var targetField = GetField(type, "target");
+                    if (targetField != null)
                     {
-                        // Use the bound object directly!
-                        // Need to check if it matches target type (GameObject vs Component)
+                        var destType = targetField.FieldType;
+                        var srcObj = binding.target;
 
-                        // We set it to resolvedRoot logic?
-                        // No, if binding target is a Component, we might need to extract GameObject if the animation wants GameObject?
-                        // Or if animation wants Component, and binding is GameObject?
-                        // Let's handle it at assignment time below.
-
-                        // For simplicity, let's assume the binding target IS what we want to inject.
-                        // But PropertyAnimationComponent expects TObject.
-                        // We use reflection to set 'target' field directly.
-
-                        var targetField = GetField(type, "target");
-                        if (targetField != null)
+                        if (destType.IsInstanceOfType(srcObj))
                         {
-                            var destType = targetField.FieldType;
-                            var srcObj = binding.target;
-
-                            // Compatibility check
-                            if (destType.IsInstanceOfType(srcObj))
+                            targetField.SetValue(component, srcObj);
+                            return;
+                        }
+                        else if (srcObj is GameObject go && typeof(Component).IsAssignableFrom(destType))
+                        {
+                            var comp = go.GetComponent(destType);
+                            if (comp != null)
                             {
-                                targetField.SetValue(component, srcObj);
-                                return; // Done! Explicit binding wins.
-                            }
-                            else if (srcObj is GameObject go && typeof(Component).IsAssignableFrom(destType))
-                            {
-                                // If bound object is GO, but we need Component, try GetComponent
-                                var comp = go.GetComponent(destType);
-                                if (comp != null)
-                                {
-                                    targetField.SetValue(component, comp);
-                                    return;
-                                }
-                            }
-                            else if (srcObj is Component compSource && destType == typeof(GameObject))
-                            {
-                                targetField.SetValue(component, compSource.gameObject);
+                                targetField.SetValue(component, comp);
                                 return;
                             }
+                        }
+                        else if (srcObj is Component compSource && destType == typeof(GameObject))
+                        {
+                            targetField.SetValue(component, compSource.gameObject);
+                            return;
                         }
                     }
                 }
             }
 
-            // 2. Try Target Name (Hierarchy Path - Fallback)
-            var nameField = GetField(type, "targetName");
-            if (nameField != null)
-            {
-                var targetName = nameField.GetValue(component) as string;
-                if (!string.IsNullOrEmpty(targetName))
-                {
-                    var child = root.transform.Find(targetName);
-                    if (child != null) resolvedRoot = child.gameObject;
-                    // else warn?
-                }
-            }
-
-            // 3. Auto-Bind to Root (Default behavior)
+            // 2. Auto-Bind to Root (Default behavior if no binding found)
             var field = GetField(type, "target");
 
             if (field != null)
