@@ -291,7 +291,7 @@ namespace LitMotion.Animation.Editor
                     // Custom drawing for CompositeAnimation children
                     if (property.name == "children")
                     {
-                        DrawChildrenList(property, view.Foldout.contentContainer);
+                        DrawChildrenList(property.serializedObject, property, view.Foldout.contentContainer);
                         continue;
                     }
 
