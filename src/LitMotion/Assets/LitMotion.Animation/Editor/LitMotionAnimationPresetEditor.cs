@@ -68,7 +68,7 @@ namespace LitMotion.Animation.Editor
                 int index = i;
                 var prop = listProp.GetArrayElementAtIndex(i);
 
-                var wrapper = new VisualElement();
+                var wrapper = new VisualElement { style = { width = Length.Percent(100) } };
                 var view = CreateComponentGUI(prop);
                 wrapper.Add(view);
 
@@ -150,22 +150,23 @@ namespace LitMotion.Animation.Editor
 
                 view.Foldout.BindProperty(property);
 
-                var endProperty = property.GetEndProperty();
+                var p = property.Copy();
+                var endProperty = p.GetEndProperty();
                 var isFirst = true;
-                while (property.NextVisible(isFirst))
+                while (p.NextVisible(isFirst))
                 {
-                    if (SerializedProperty.EqualContents(property, endProperty)) break;
-                    if (property.name == "enabled") continue;
+                    if (SerializedProperty.EqualContents(p, endProperty)) break;
+                    if (p.name == "enabled") continue;
 
                     // Support recursion for nested composites even in presets!
-                    if (property.name == "children")
+                    if (p.name == "children")
                     {
-                        DrawComponentsList(property, view.Foldout.contentContainer);
+                        DrawComponentsList(p, view.Foldout.contentContainer);
                         continue;
                     }
 
                     isFirst = false;
-                    view.Add(new PropertyField(property));
+                    view.Add(new PropertyField(p));
                 }
 
                 var enabledProperty = property.FindPropertyRelative("enabled");

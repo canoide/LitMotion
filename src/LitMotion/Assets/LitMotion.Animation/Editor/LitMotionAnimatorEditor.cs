@@ -281,28 +281,29 @@ namespace LitMotion.Animation.Editor
 
                 view.Foldout.BindProperty(property);
 
-                var endProperty = property.GetEndProperty();
+                var p = property.Copy();
+                var endProperty = p.GetEndProperty();
                 var isFirst = true;
-                while (property.NextVisible(isFirst))
+                while (p.NextVisible(isFirst))
                 {
-                    if (SerializedProperty.EqualContents(property, endProperty)) break;
-                    if (property.name == "enabled") continue;
+                    if (SerializedProperty.EqualContents(p, endProperty)) break;
+                    if (p.name == "enabled") continue;
 
                     // Custom drawing for CompositeAnimation children
-                    if (property.name == "children")
+                    if (p.name == "children")
                     {
-                        DrawChildrenList(property.serializedObject, property, view.Foldout.contentContainer);
+                        DrawChildrenList(p.serializedObject, p, view.Foldout.contentContainer);
                         continue;
                     }
 
                     isFirst = false;
 
-                    view.Add(new PropertyField(property));
+                    view.Add(new PropertyField(p));
 
                     // Custom drawing for PresetAnimation embedded inspector
-                    if (property.name == "preset" && property.objectReferenceValue != null)
+                    if (p.name == "preset" && p.objectReferenceValue != null)
                     {
-                        var so = new SerializedObject(property.objectReferenceValue);
+                        var so = new SerializedObject(p.objectReferenceValue);
                         so.Update();
                         var comps = so.FindProperty("components");
                         if (comps != null)
@@ -329,14 +330,14 @@ namespace LitMotion.Animation.Editor
             componentsBox.style.marginTop = 5;
 
             // Distinguish between Composite and Preset labeling logic if desired, but "Actions" works for both.
-            componentsBox.Add(new Label("Actions:"));
+            componentsBox.Add(new Label("Actions:") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
 
             for (int j = 0; j < listProp.arraySize; j++)
             {
                 var compIndex = j; // Capture loop variable
                 var compProp = listProp.GetArrayElementAtIndex(j);
 
-                var wrapper = new VisualElement();
+                var wrapper = new VisualElement { style = { width = Length.Percent(100) } };
                 var view = CreateComponentGUI(compProp);
                 wrapper.Add(view);
 
