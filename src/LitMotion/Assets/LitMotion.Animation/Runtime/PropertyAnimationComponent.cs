@@ -26,7 +26,11 @@ namespace LitMotion.Animation
 
         public override MotionHandle Play()
         {
-            if (target == null) return default;
+            if (target == null)
+            {
+                Debug.LogWarning($"[LitMotion] Target is null in {GetType().Name}. Please assign a target in the Inspector or check your Preset bindings.");
+                return default;
+            }
 
             startValue = GetValue(target);
 

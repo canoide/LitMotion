@@ -97,13 +97,19 @@ namespace LitMotion.Animation.Editor
 
             var header = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
             var idProp = entryProp.FindPropertyRelative("id");
-            // Use explicit TextField to ensure visibility
+
             var idField = new TextField { bindingPath = idProp.propertyPath };
             idField.style.flexGrow = 1;
             idField.Bind(entryProp.serializedObject);
 
             header.Add(new Label($"#{index} "));
             header.Add(idField);
+
+            var autoPlayProp = entryProp.FindPropertyRelative("autoPlay");
+            var autoPlayToggle = new Toggle("AutoPlay") { bindingPath = autoPlayProp.propertyPath };
+            autoPlayToggle.style.marginLeft = 5;
+            autoPlayToggle.Bind(entryProp.serializedObject);
+            header.Add(autoPlayToggle);
 
             // Per-animation controls
             var animId = idProp.stringValue; // Initial value
@@ -284,11 +290,16 @@ namespace LitMotion.Animation.Editor
                 var p = property.Copy();
                 var endProperty = p.GetEndProperty();
                 var isFirst = true;
+                var isPresetEditor = p.serializedObject.targetObject is LitMotionAnimationPreset;
+
                 while (p.NextVisible(isFirst))
                 {
                     if (SerializedProperty.EqualContents(p, endProperty)) break;
                     if (p.name == "enabled") continue;
                     if (p.name == "bindings") continue; // Hide raw bindings list
+
+                    // Hide 'target' field if we are editing a Preset (it uses bindings)
+                    if (isPresetEditor && p.name == "target") continue;
 
                     // Custom drawing for CompositeAnimation children
                     if (p.name == "children")

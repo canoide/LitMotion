@@ -10,6 +10,7 @@ namespace LitMotion.Animation
     public class LitMotionAnimationEntry
     {
         public string id;
+        public bool autoPlay;
         public AnimationMode mode;
         [SerializeReference] public LitMotionAnimationComponent[] components;
         public UnityEvent onComplete;
@@ -23,6 +24,14 @@ namespace LitMotion.Animation
     public sealed class LitMotionAnimator : MonoBehaviour
     {
         [SerializeField] List<LitMotionAnimationEntry> animations = new();
+
+        void Start()
+        {
+            foreach (var anim in animations)
+            {
+                if (anim.autoPlay) PlayAnimation(anim);
+            }
+        }
 
         public void Play()
         {

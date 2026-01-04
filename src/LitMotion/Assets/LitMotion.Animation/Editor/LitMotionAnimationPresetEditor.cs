@@ -157,6 +157,7 @@ namespace LitMotion.Animation.Editor
                 {
                     if (SerializedProperty.EqualContents(p, endProperty)) break;
                     if (p.name == "enabled") continue;
+                    if (p.name == "target") continue; // Always hide target in Preset Editor
 
                     // Support recursion for nested composites even in presets!
                     if (p.name == "children")
