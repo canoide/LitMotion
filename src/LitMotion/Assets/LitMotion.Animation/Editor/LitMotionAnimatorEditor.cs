@@ -304,7 +304,7 @@ namespace LitMotion.Animation.Editor
                     // Custom drawing for CompositeAnimation children
                     if (p.name == "children")
                     {
-                        DrawChildrenList(p.serializedObject, p, view.Foldout.contentContainer);
+                        DrawChildrenList(p.serializedObject, p.Copy(), view.Foldout.contentContainer);
                         continue;
                     }
 
@@ -396,6 +396,10 @@ namespace LitMotion.Animation.Editor
                         property.managedReferenceValue = ReflectionHelper.CreateDefaultInstance(type);
                         targetObject.ApplyModifiedProperties();
                         RefreshAnimationsList();
+                    }
+                    else
+                    {
+                        Debug.LogError($"[LitMotionAnimator] Failed to find valid array property at path: {path}");
                     }
                 };
                 localDropdown.Show(addCompBtn.worldBound);
