@@ -47,11 +47,9 @@ namespace LitMotion.Animation.Components
                     }
                     else
                     {
-                        // In Parallel mode, we want all children to start at the beginning of this sequence.
-                        // Join(handle) inserts at `lastTail`. Since we never call Append/AppendInterval
-                        // in this loop for Parallel mode, `lastTail` remains at 0 (start of this sequence).
-                        // So simply calling Join() for all items works correctly for a parallel block.
-                        builder.Join(handle);
+                        // In Parallel mode, explicitly insert at time 0 to ensure all animations start together.
+                        // This avoids ambiguity with Join logic depending on previous appends.
+                        builder.Insert(0, handle);
                     }
                 }
             }

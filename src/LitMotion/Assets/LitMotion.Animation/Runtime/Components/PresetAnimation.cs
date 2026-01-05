@@ -50,7 +50,7 @@ namespace LitMotion.Animation.Components
                     }
                     else
                     {
-                        builder.Join(handle);
+                        builder.Insert(0, handle);
                     }
                 }
             }
