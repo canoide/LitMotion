@@ -325,6 +325,13 @@ namespace LitMotion.Animation.Editor
 
                         var so = new SerializedObject(p.objectReferenceValue);
                         so.Update();
+
+                        var modeProp = so.FindProperty("mode");
+                        if (modeProp != null)
+                        {
+                            view.Foldout.contentContainer.Add(new PropertyField(modeProp));
+                        }
+
                         var comps = so.FindProperty("components");
                         if (comps != null)
                         {
