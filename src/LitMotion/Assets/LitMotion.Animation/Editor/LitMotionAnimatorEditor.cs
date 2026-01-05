@@ -171,7 +171,14 @@ namespace LitMotion.Animation.Editor
             idField.RegisterValueChangedCallback(evt => animId = evt.newValue);
 
             // Foldout for details
-            var foldout = new Foldout { text = "Settings & Actions", value = false };
+            var foldout = new Foldout { text = "Settings & Actions" };
+            foldout.value = entryProp.isExpanded;
+            foldout.RegisterValueChangedCallback(evt =>
+            {
+                entryProp.isExpanded = evt.newValue;
+                entryProp.serializedObject.ApplyModifiedProperties(); // Save expansion state
+            });
+
             foldout.Add(new PropertyField(entryProp.FindPropertyRelative("mode")));
             foldout.Add(new PropertyField(entryProp.FindPropertyRelative("onComplete")));
 
