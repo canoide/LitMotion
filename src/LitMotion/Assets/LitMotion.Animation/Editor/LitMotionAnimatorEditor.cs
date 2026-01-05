@@ -316,7 +316,19 @@ namespace LitMotion.Animation.Editor
 
                     isFirst = false;
 
-                    view.Add(new PropertyField(p));
+                    if (p.name == "preset")
+                    {
+                        var field = new PropertyField(p);
+                        field.RegisterCallback<ChangeEvent<UnityEngine.Object>>((evt) =>
+                        {
+                            root.schedule.Execute(() => RefreshAnimationsList());
+                        });
+                        view.Add(field);
+                    }
+                    else
+                    {
+                        view.Add(new PropertyField(p));
+                    }
 
                     // Custom drawing for PresetAnimation embedded inspector and Bindings
                     if (p.name == "preset" && p.objectReferenceValue != null)

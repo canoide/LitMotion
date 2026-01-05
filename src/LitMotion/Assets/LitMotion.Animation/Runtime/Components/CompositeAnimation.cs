@@ -10,10 +10,13 @@ namespace LitMotion.Animation.Components
         public AnimationMode mode;
         [SerializeReference] public LitMotionAnimationComponent[] children;
 
+        List<MotionHandle> activeHandles = new();
+
         public override MotionHandle Play()
         {
             var builder = LSequence.Create();
             var hasChildren = false;
+            activeHandles.Clear();
 
             if (children != null)
             {
@@ -22,6 +25,7 @@ namespace LitMotion.Animation.Components
                     if (child == null || !child.Enabled) continue;
 
                     var handle = child.Play();
+                    activeHandles.Add(handle);
 
                     // Note: LSequence takes ownership of the handle.
                     // If the child returns an empty/default handle (e.g. invalid target), LSequence might complain if it's not active.
@@ -61,6 +65,13 @@ namespace LitMotion.Animation.Components
 
         public override void OnStop()
         {
+            // Ensure all child handles are cancelled (kill zombies)
+            foreach (var h in activeHandles)
+            {
+                if (h.IsActive()) h.TryCancel();
+            }
+            activeHandles.Clear();
+
             if (children != null)
             {
                 foreach (var child in children)

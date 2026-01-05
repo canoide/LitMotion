@@ -21,6 +21,7 @@ namespace LitMotion.Animation.Components
         public List<AnimationBinding> bindings;
 
         LitMotionAnimationPreset runtimePreset;
+        List<MotionHandle> activeHandles = new();
 
         public override MotionHandle Play()
         {
@@ -32,6 +33,7 @@ namespace LitMotion.Animation.Components
             Debug.Log($"[PresetAnimation] Playing '{preset.name}' in mode: {runtimePreset.mode}");
 
             var builder = LSequence.Create();
+            activeHandles.Clear();
 
             if (runtimePreset.components != null)
             {
@@ -42,6 +44,7 @@ namespace LitMotion.Animation.Components
                     BindTarget(component, target);
 
                     var handle = component.Play();
+                    activeHandles.Add(handle);
 
                     if (!handle.IsActive()) continue;
 
@@ -61,12 +64,20 @@ namespace LitMotion.Animation.Components
 
         public override void OnStop()
         {
+            // Ensure child handles are cancelled
+            foreach (var h in activeHandles)
+            {
+                if (h.IsActive()) h.TryCancel();
+            }
+            activeHandles.Clear();
+
             if (runtimePreset != null && runtimePreset.components != null)
             {
                 foreach (var component in runtimePreset.components)
                 {
                     if (component != null) component.OnStop();
                 }
+                // Optional: Destroy(runtimePreset);
                 runtimePreset = null;
             }
         }
