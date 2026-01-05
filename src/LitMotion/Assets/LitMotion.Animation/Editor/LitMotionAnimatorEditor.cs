@@ -172,6 +172,7 @@ namespace LitMotion.Animation.Editor
 
             // Foldout for details
             var foldout = new Foldout { text = "Settings & Actions" };
+            foldout.viewDataKey = $"LitMotionAnim_{target.GetInstanceID()}_Entry_{index}";
             foldout.value = entryProp.isExpanded;
             foldout.RegisterValueChangedCallback(evt =>
             {
