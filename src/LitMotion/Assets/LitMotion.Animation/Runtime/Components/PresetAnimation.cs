@@ -29,6 +29,7 @@ namespace LitMotion.Animation.Components
 
             // Clone the preset to ensure unique component instances (stateful)
             runtimePreset = UnityEngine.Object.Instantiate(preset);
+            Debug.Log($"[PresetAnimation] Playing '{preset.name}' in mode: {runtimePreset.mode}");
 
             var builder = LSequence.Create();
 

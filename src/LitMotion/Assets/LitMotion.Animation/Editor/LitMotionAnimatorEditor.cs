@@ -329,7 +329,9 @@ namespace LitMotion.Animation.Editor
                         var modeProp = so.FindProperty("mode");
                         if (modeProp != null)
                         {
-                            view.Foldout.contentContainer.Add(new PropertyField(modeProp));
+                            var modeBox = new Box { style = { marginTop = 2, marginBottom = 2, paddingLeft = 5 } };
+                            modeBox.Add(new PropertyField(modeProp));
+                            view.Foldout.contentContainer.Add(modeBox);
                         }
 
                         var comps = so.FindProperty("components");
