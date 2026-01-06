@@ -149,40 +149,13 @@ namespace LitMotion.Animation.Editor
                 addButton.SetEnabled(enabled);
             }).Every(10);
 
+            // Removed Progress bar update loop to fix Editor performance lag.
             box.schedule.Execute(() =>
             {
                 if (componentsProperty.arraySize != prevArraySize)
                 {
                     RefleshComponentsView(true);
                     prevArraySize = componentsProperty.arraySize;
-                }
-
-                var components = ((LitMotionAnimation)target).Components;
-                for (int i = 0; i < views.Count; i++)
-                {
-                    if (components.Count <= i)
-                    {
-                        views[i].Progress = 0f;
-                        continue;
-                    }
-
-                    var component = components[i];
-                    if (component == null)
-                    {
-                        views[i].Progress = 0f;
-                        continue;
-                    }
-
-                    var handle = component.TrackedHandle;
-
-                    if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
-                    {
-                        views[i].Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
-                    }
-                    else
-                    {
-                        views[i].Progress = 0f;
-                    }
                 }
             })
             .Every(10);
