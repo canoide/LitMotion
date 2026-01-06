@@ -180,8 +180,11 @@ namespace LitMotion.Animation.Editor
                 entryProp.serializedObject.ApplyModifiedProperties(); // Save expansion state
             });
 
-            foldout.Add(new PropertyField(entryProp.FindPropertyRelative("mode")));
-            foldout.Add(new PropertyField(entryProp.FindPropertyRelative("onComplete")));
+            // Settings Box (Wrap to prevent layout issues)
+            var settingsBox = new Box { style = { marginBottom = 5 } };
+            settingsBox.Add(new PropertyField(entryProp.FindPropertyRelative("mode")));
+            settingsBox.Add(new PropertyField(entryProp.FindPropertyRelative("onComplete")));
+            foldout.Add(settingsBox);
 
             // Components List
             var componentsProp = entryProp.FindPropertyRelative("components");
@@ -201,6 +204,30 @@ namespace LitMotion.Animation.Editor
                 view.style.flexGrow = 1;
                 row.Add(view);
 
+                // Controls Container
+                var controls = new VisualElement { style = { flexDirection = FlexDirection.Row, alignSelf = Align.FlexStart } };
+
+                // Up Button
+                var upBtn = new Button(() =>
+                {
+                    componentsProp.MoveArrayElement(compIndex, compIndex - 1);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList();
+                }) { text = "↑", style = { width = 20 } };
+                if (j == 0) upBtn.SetEnabled(false);
+                controls.Add(upBtn);
+
+                // Down Button
+                var downBtn = new Button(() =>
+                {
+                    componentsProp.MoveArrayElement(compIndex, compIndex + 1);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList();
+                }) { text = "↓", style = { width = 20 } };
+                if (j == componentsProp.arraySize - 1) downBtn.SetEnabled(false);
+                controls.Add(downBtn);
+
+                // Remove Button
                 var removeActionBtn = new Button(() =>
                 {
                     componentsProp.DeleteArrayElementAtIndex(compIndex);
@@ -211,13 +238,13 @@ namespace LitMotion.Animation.Editor
                     text = "X",
                     style = {
                         width = 20,
-                        backgroundColor = new Color(0.8f, 0.3f, 0.3f),
-                        alignSelf = Align.FlexStart
+                        backgroundColor = new Color(0.8f, 0.3f, 0.3f)
                     },
                     tooltip = "Remove Action"
                 };
+                controls.Add(removeActionBtn);
 
-                row.Add(removeActionBtn);
+                row.Add(controls);
                 componentsBox.Add(row);
             }
 
