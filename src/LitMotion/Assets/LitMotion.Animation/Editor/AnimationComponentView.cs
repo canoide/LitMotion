@@ -11,7 +11,6 @@ namespace LitMotion.Animation.Editor
         readonly Foldout foldout;
         readonly VisualElement icon;
         readonly Toggle enabledToggle;
-        readonly ProgressBar progressBar;
 
         public Foldout Foldout => foldout;
         public Toggle EnabledToggle => enabledToggle;
@@ -21,12 +20,6 @@ namespace LitMotion.Animation.Editor
         {
             get => enabledToggle.text;
             set => enabledToggle.text = value;
-        }
-
-        public float Progress
-        {
-            get => progressBar.value;
-            set => progressBar.value = value;
         }
 
         public StyleBackground Icon
@@ -80,6 +73,8 @@ namespace LitMotion.Animation.Editor
                 }
             };
             enabledToggle.Q(className: Toggle.checkmarkUssClassName).style.marginRight = 6f;
+
+            // Only schedule the one-off layout fix, no polling loop.
             enabledToggle.schedule.Execute(() =>
             {
                 enabledToggle.pickingMode = PickingMode.Ignore;
@@ -89,30 +84,8 @@ namespace LitMotion.Animation.Editor
             });
             foldoutCheck.parent.Add(enabledToggle);
 
-            progressBar = new ProgressBar
-            {
-                lowValue = 0f,
-                highValue = 1f,
-                value = 0f,
-                style = {
-                    height = 2.5f,
-                    position = Position.Absolute,
-                    top = 22f,
-                    left = 24f,
-                    right = 2f,
-                    alignSelf = Align.Stretch,
-                }
-            };
-            var background = progressBar.Q(className: AbstractProgressBar.backgroundUssClassName);
-            background.style.borderTopWidth = 0f;
-            background.style.borderBottomWidth = 0f;
-            background.style.borderLeftWidth = 0f;
-            background.style.borderRightWidth = 0f;
-            var progress = progressBar.Q(className: AbstractProgressBar.progressUssClassName);
-            progress.style.backgroundColor = Color.white;
-            progress.style.minWidth = 0f;
-            progressBar.schedule.Execute(() => progress.style.display = progressBar.value > progressBar.lowValue ? DisplayStyle.Flex : DisplayStyle.None).Every(10);
-            root.Add(progressBar);
+            // Removed ProgressBar to improve Editor performance (lag issue).
+            // Progress tracking requires efficient runtime binding which was causing overhead.
 
             contextMenuButton = new VisualElement
             {
@@ -136,7 +109,6 @@ namespace LitMotion.Animation.Editor
             EnabledToggle.SetEnabled(enabled);
             icon.SetEnabled(enabled);
             contextMenuButton.SetEnabled(enabled);
-            progressBar.SetEnabled(enabled);
         }
     }
 }
