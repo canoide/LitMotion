@@ -149,7 +149,8 @@ namespace LitMotion.Animation.Editor
                 addButton.SetEnabled(enabled);
             }).Every(10);
 
-            // Removed Progress bar update loop to fix Editor performance lag.
+            // Centralized Progress Update Loop
+            // This replaces the per-component polling that caused lag.
             box.schedule.Execute(() =>
             {
                 if (componentsProperty.arraySize != prevArraySize)
@@ -157,8 +158,41 @@ namespace LitMotion.Animation.Editor
                     RefleshComponentsView(true);
                     prevArraySize = componentsProperty.arraySize;
                 }
+
+                var components = ((LitMotionAnimation)target).Components;
+                if (components == null) return;
+
+                for (int i = 0; i < views.Count; i++)
+                {
+                    if (components.Count <= i)
+                    {
+                        views[i].Progress = 0f;
+                        continue;
+                    }
+
+                    var component = components[i];
+                    if (component == null)
+                    {
+                        views[i].Progress = 0f;
+                        continue;
+                    }
+
+                    var handle = component.TrackedHandle;
+
+                    if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
+                    {
+                        views[i].Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
+                    }
+                    else
+                    {
+                        // Keep last known progress or reset?
+                        // If finished, usually stays at 1. If stopped, 0.
+                        // For now, reset to 0 to be clean.
+                        views[i].Progress = 0f;
+                    }
+                }
             })
-            .Every(10);
+            .Every(20); // Reduced frequency slightly (10ms -> 20ms = 50fps) to further help performance
 
             return box;
         }
