@@ -55,37 +55,37 @@ namespace LitMotion.Animation.Editor
 
             RefreshAnimationsList();
 
-            // DISABLED: Centralized Update Loop for Progress Bars to prevent Editor memory leaks/lag.
-            // root.schedule.Execute(() =>
-            // {
-            //     // Only update progress bars in Play Mode to save resources in Editor
-            //     if (!Application.isPlaying) return;
-            //
-            //     if (target == null) return;
-            //
-            //     foreach (var item in activeViews)
-            //     {
-            //         if (item.view == null) continue; // View might be destroyed
-            //
-            //         var component = item.component;
-            //         if (component != null)
-            //         {
-            //             var handle = component.TrackedHandle;
-            //             if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
-            //             {
-            //                 item.view.Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
-            //             }
-            //             else
-            //             {
-            //                 item.view.Progress = 0f;
-            //             }
-            //         }
-            //         else
-            //         {
-            //             item.view.Progress = 0f;
-            //         }
-            //     }
-            // }).Every(30);
+            // Centralized Update Loop for Progress Bars
+            // Safe implementation: only runs in Play Mode to avoid Editor leaks/lag
+            root.schedule.Execute(() =>
+            {
+                if (!Application.isPlaying) return;
+
+                if (target == null) return;
+
+                foreach (var item in activeViews)
+                {
+                    if (item.view == null) continue; // View might be destroyed
+
+                    var component = item.component;
+                    if (component != null)
+                    {
+                        var handle = component.TrackedHandle;
+                        if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
+                        {
+                            item.view.Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
+                        }
+                        else
+                        {
+                            item.view.Progress = 0f;
+                        }
+                    }
+                    else
+                    {
+                        item.view.Progress = 0f;
+                    }
+                }
+            }).Every(30);
 
             return root;
         }
@@ -239,8 +239,6 @@ namespace LitMotion.Animation.Editor
                 // Create view and register for updates
                 var view = CreateComponentGUI(compProp);
 
-                // Skip activeViews population to ensure no memory hold
-                /*
                 // Optimization: Get the runtime object directly via managedReferenceValue
                 // This avoids reflection during the update loop.
                 var runtimeComponent = compProp.managedReferenceValue as LitMotionAnimationComponent;
@@ -248,7 +246,6 @@ namespace LitMotion.Animation.Editor
                 {
                     activeViews.Add((view, runtimeComponent));
                 }
-                */
 
                 view.style.flexGrow = 1;
                 row.Add(view);
@@ -346,7 +343,8 @@ namespace LitMotion.Animation.Editor
                 if (displayNameProp != null)
                 {
                     view.Text = displayNameProp.stringValue;
-                    view.TrackPropertyValue(displayNameProp, x => view.Text = x.stringValue);
+                    // Removed TrackPropertyValue (polling).
+                    // Will bind in the loop below via RegisterValueChangedCallback if PropertyField is created.
                 }
                 else
                 {
@@ -392,18 +390,29 @@ namespace LitMotion.Animation.Editor
 
                     isFirst = false;
 
+                    PropertyField pf;
                     if (p.name == "preset")
                     {
-                        var field = new PropertyField(p);
-                        field.RegisterCallback<ChangeEvent<UnityEngine.Object>>((evt) =>
+                        pf = new PropertyField(p);
+                        pf.RegisterCallback<ChangeEvent<UnityEngine.Object>>((evt) =>
                         {
                             root.schedule.Execute(() => RefreshAnimationsList());
                         });
-                        view.Add(field);
+                        view.Add(pf);
                     }
                     else
                     {
-                        view.Add(new PropertyField(p));
+                        pf = new PropertyField(p);
+                        view.Add(pf);
+                    }
+
+                    // Hook for displayName real-time update without polling
+                    if (p.name == "displayName")
+                    {
+                        pf.RegisterCallback<ChangeEvent<string>>(evt =>
+                        {
+                            view.Text = evt.newValue;
+                        });
                     }
 
                     // Custom drawing for PresetAnimation embedded inspector and Bindings
@@ -457,7 +466,6 @@ namespace LitMotion.Animation.Editor
 
                 var view = CreateComponentGUI(compProp);
 
-                /*
                 // Optimization: Capture runtime reference for nested/child components too
                 var runtimeComponent = compProp.managedReferenceValue as LitMotionAnimationComponent;
                 if (runtimeComponent != null)
@@ -465,7 +473,6 @@ namespace LitMotion.Animation.Editor
                     // This works even for nested components because SerializeReference objects are persistent
                     activeViews.Add((view, runtimeComponent));
                 }
-                */
 
                 view.style.flexGrow = 1;
                 row.Add(view);
