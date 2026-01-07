@@ -18,10 +18,18 @@ namespace LitMotion.Animation
 
         TValue startValue;
 
-        public override void OnStop()
+        public override float Duration => settings.Duration;
+        public override float Delay => settings.Delay;
+
+        public override void ResetValue()
         {
             if (target == null) return;
             SetValue(target, startValue);
+        }
+
+        public override void OnStop()
+        {
+            ResetValue();
         }
 
         public override MotionHandle Play()
