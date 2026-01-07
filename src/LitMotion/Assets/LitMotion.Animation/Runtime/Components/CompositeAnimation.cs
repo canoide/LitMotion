@@ -59,6 +59,45 @@ namespace LitMotion.Animation.Components
             return builder.Run();
         }
 
+        public override void ResetValue()
+        {
+            if (children != null)
+            {
+                foreach (var child in children)
+                {
+                    if (child != null) child.ResetValue();
+                }
+            }
+        }
+
+        public override float Duration
+        {
+            get
+            {
+                if (children == null) return 0f;
+                var total = 0f;
+                if (mode == AnimationMode.Sequential)
+                {
+                    foreach (var child in children)
+                    {
+                        if (child != null && child.Enabled) total += (child.Duration + child.Delay);
+                    }
+                }
+                else
+                {
+                    foreach (var child in children)
+                    {
+                        if (child != null && child.Enabled)
+                        {
+                            var d = child.Duration + child.Delay;
+                            if (d > total) total = d;
+                        }
+                    }
+                }
+                return total;
+            }
+        }
+
         public override void OnStop()
         {
             if (children != null)

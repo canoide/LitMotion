@@ -26,9 +26,9 @@ namespace LitMotion.Animation
         public string DisplayName => displayName;
 
         public abstract MotionHandle Play();
-        public abstract void ResetValue();
-        public abstract float Duration { get; }
-        public abstract float Delay { get; }
+        public virtual void ResetValue() { }
+        public virtual float Duration => 0f;
+        public virtual float Delay => 0f;
 
         public virtual void OnResume() { }
         public virtual void OnPause() { }
