@@ -55,37 +55,37 @@ namespace LitMotion.Animation.Editor
 
             RefreshAnimationsList();
 
-            // Centralized Update Loop for Progress Bars - Highly Optimized
-            root.schedule.Execute(() =>
-            {
-                // Only update progress bars in Play Mode to save resources in Editor
-                if (!Application.isPlaying) return;
-
-                if (target == null) return;
-
-                foreach (var item in activeViews)
-                {
-                    if (item.view == null) continue; // View might be destroyed
-
-                    var component = item.component;
-                    if (component != null)
-                    {
-                        var handle = component.TrackedHandle;
-                        if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
-                        {
-                            item.view.Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
-                        }
-                        else
-                        {
-                            item.view.Progress = 0f;
-                        }
-                    }
-                    else
-                    {
-                        item.view.Progress = 0f;
-                    }
-                }
-            }).Every(30); // 30ms ~ 33fps, sufficient for UI feedback
+            // DISABLED: Centralized Update Loop for Progress Bars to prevent Editor memory leaks/lag.
+            // root.schedule.Execute(() =>
+            // {
+            //     // Only update progress bars in Play Mode to save resources in Editor
+            //     if (!Application.isPlaying) return;
+            //
+            //     if (target == null) return;
+            //
+            //     foreach (var item in activeViews)
+            //     {
+            //         if (item.view == null) continue; // View might be destroyed
+            //
+            //         var component = item.component;
+            //         if (component != null)
+            //         {
+            //             var handle = component.TrackedHandle;
+            //             if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
+            //             {
+            //                 item.view.Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
+            //             }
+            //             else
+            //             {
+            //                 item.view.Progress = 0f;
+            //             }
+            //         }
+            //         else
+            //         {
+            //             item.view.Progress = 0f;
+            //         }
+            //     }
+            // }).Every(30);
 
             return root;
         }
@@ -239,6 +239,8 @@ namespace LitMotion.Animation.Editor
                 // Create view and register for updates
                 var view = CreateComponentGUI(compProp);
 
+                // Skip activeViews population to ensure no memory hold
+                /*
                 // Optimization: Get the runtime object directly via managedReferenceValue
                 // This avoids reflection during the update loop.
                 var runtimeComponent = compProp.managedReferenceValue as LitMotionAnimationComponent;
@@ -246,6 +248,7 @@ namespace LitMotion.Animation.Editor
                 {
                     activeViews.Add((view, runtimeComponent));
                 }
+                */
 
                 view.style.flexGrow = 1;
                 row.Add(view);
@@ -454,6 +457,7 @@ namespace LitMotion.Animation.Editor
 
                 var view = CreateComponentGUI(compProp);
 
+                /*
                 // Optimization: Capture runtime reference for nested/child components too
                 var runtimeComponent = compProp.managedReferenceValue as LitMotionAnimationComponent;
                 if (runtimeComponent != null)
@@ -461,6 +465,7 @@ namespace LitMotion.Animation.Editor
                     // This works even for nested components because SerializeReference objects are persistent
                     activeViews.Add((view, runtimeComponent));
                 }
+                */
 
                 view.style.flexGrow = 1;
                 row.Add(view);
