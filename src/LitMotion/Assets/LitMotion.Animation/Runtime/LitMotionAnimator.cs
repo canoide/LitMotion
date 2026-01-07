@@ -25,8 +25,9 @@ namespace LitMotion.Animation
         internal Queue<LitMotionAnimationComponent> queue = new();
         internal FastListCore<LitMotionAnimationComponent> playingComponents;
         internal int activeParallelCount;
-        internal float currentTime;
-        internal float totalDuration;
+
+        [NonSerialized] public float currentTime;
+        [NonSerialized] public float totalDuration;
     }
 
     [AddComponentMenu("LitMotion Animator")]
