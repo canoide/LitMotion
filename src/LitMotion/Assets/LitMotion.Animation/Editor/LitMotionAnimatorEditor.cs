@@ -134,6 +134,40 @@ namespace LitMotion.Animation.Editor
             autoPlayToggle.Bind(entryProp.serializedObject);
             header.Add(autoPlayToggle);
 
+            // Move Up Button
+            var upBtn = new Button(() => {
+                if (index > 0)
+                {
+                    animationsProp.MoveArrayElement(index, index - 1);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList();
+                }
+            })
+            {
+                text = "↑",
+                style = { width = 24, height = 24 },
+                tooltip = "Move Up"
+            };
+            upBtn.SetEnabled(index > 0);
+            header.Add(upBtn);
+
+            // Move Down Button
+            var downBtn = new Button(() => {
+                if (index < animationsProp.arraySize - 1)
+                {
+                    animationsProp.MoveArrayElement(index, index + 1);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList();
+                }
+            })
+            {
+                text = "↓",
+                style = { width = 24, height = 24 },
+                tooltip = "Move Down"
+            };
+            downBtn.SetEnabled(index < animationsProp.arraySize - 1);
+            header.Add(downBtn);
+
             // Per-animation controls
             var animId = idProp.stringValue; // Initial value
 
