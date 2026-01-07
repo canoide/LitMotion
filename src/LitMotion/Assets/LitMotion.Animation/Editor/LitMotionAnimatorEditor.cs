@@ -15,12 +15,8 @@ namespace LitMotion.Animation.Editor
         VisualElement animationsListContainer;
         AddAnimationComponentDropdown dropdown;
 
-        // Track active views for progress updates
-        // Map AnimationComponentView -> (EntryIndex, ComponentIndex) or direct Component object?
-        // LitMotionAnimator doesn't expose components easily by index in runtime list if we modify list.
-        // But we can iterate.
-        // Let's store a flattened list of views and their associated runtime component provider logic.
-        List<(AnimationComponentView view, Func<LitMotionAnimationComponent> componentProvider)> activeViews = new();
+        // Optimized: Store direct reference to runtime component
+        List<(AnimationComponentView view, LitMotionAnimationComponent component)> activeViews = new();
 
         public override VisualElement CreateInspectorGUI()
         {
@@ -59,7 +55,7 @@ namespace LitMotion.Animation.Editor
 
             RefreshAnimationsList();
 
-            // Centralized Update Loop for Progress Bars
+            // Centralized Update Loop for Progress Bars - Highly Optimized
             root.schedule.Execute(() =>
             {
                 if (target == null) return;
@@ -68,7 +64,7 @@ namespace LitMotion.Animation.Editor
                 {
                     if (item.view == null) continue; // View might be destroyed
 
-                    var component = item.componentProvider();
+                    var component = item.component;
                     if (component != null)
                     {
                         var handle = component.TrackedHandle;
@@ -240,32 +236,13 @@ namespace LitMotion.Animation.Editor
                 // Create view and register for updates
                 var view = CreateComponentGUI(compProp);
 
-                // Closure to safely access runtime component
-                int capturedEntryIndex = entryIndex;
-                int capturedCompIndex = j;
-                Func<LitMotionAnimationComponent> provider = () => {
-                    var anim = (LitMotionAnimator)target;
-                    // Reflection or direct access? LitMotionAnimator has private fields usually.
-                    // But we can assume it exposes data via reflection or we made it public?
-                    // The 'animations' field is private. We need a way to access it.
-                    // Actually, 'animations' is a SerializedField, so we can access it via standard reflection if needed,
-                    // or just make a public accessor in LitMotionAnimator if possible.
-                    // Since I can't easily change Runtime code api right now without potential breakage, let's use reflection safely.
-                    // Wait, I can just use serializedObject? No, handle is runtime only.
-
-                    // Accessing private field via reflection for Editor purpose is standard.
-                    var field = typeof(LitMotionAnimator).GetField("animations", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    if (field == null) return null;
-                    var list = field.GetValue(anim) as List<LitMotionAnimationEntry>;
-                    if (list == null || list.Count <= capturedEntryIndex) return null;
-
-                    var entry = list[capturedEntryIndex];
-                    if (entry.components == null || entry.components.Length <= capturedCompIndex) return null;
-
-                    return entry.components[capturedCompIndex];
-                };
-
-                activeViews.Add((view, provider));
+                // Optimization: Get the runtime object directly via managedReferenceValue
+                // This avoids reflection during the update loop.
+                var runtimeComponent = compProp.managedReferenceValue as LitMotionAnimationComponent;
+                if (runtimeComponent != null)
+                {
+                    activeViews.Add((view, runtimeComponent));
+                }
 
                 view.style.flexGrow = 1;
                 row.Add(view);
@@ -463,7 +440,6 @@ namespace LitMotion.Animation.Editor
             componentsBox.style.marginLeft = 10;
             componentsBox.style.marginTop = 5;
 
-            // Distinguish between Composite and Preset labeling logic if desired, but "Actions" works for both.
             componentsBox.Add(new Label("Actions:") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
 
             for (int j = 0; j < listProp.arraySize; j++)
@@ -473,46 +449,18 @@ namespace LitMotion.Animation.Editor
 
                 var row = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 2 } };
 
-                // Recurse: CreateComponentGUI calls DrawChildrenList if needed
-                // But we need to register views in activeViews for recursion too if we want nested progress!
-                // Currently activeViews only added in CreateAnimationEntryGUI loop.
-                // We should modify CreateComponentGUI or pass a collection to it?
-                // Or better, make CreateComponentGUI register itself if it's not a composite?
-                // Actually, CreateComponentGUI returns the view. The caller (DrawChildrenList or CreateAnimationEntryGUI) adds to list.
-                // WE NEED TO FIX THIS: DrawChildrenList calls CreateComponentGUI but does NOT add to activeViews.
-                // This means nested animations won't show progress.
-
-                // Fix: Pass a callback or expose activeViews to DrawChildrenList.
-                // Since this is a simple script, I can just access the field `activeViews` if I am in the class.
-                // But `DrawChildrenList` logic for finding runtime component is hard for nested items without tracking path.
-                // Getting runtime component for nested composite is complex via index only.
-                // For now, let's just support top-level progress or accept that nested ones might be tricky without full object mapping.
-                // But user wants "progress bar".
-
-                // Simplification: Only support top-level action progress for now in this iteration to avoid over-engineering the path resolution,
-                // OR try to resolve it.
-                // If I have the parent component, I can get child.
-
                 var view = CreateComponentGUI(compProp);
+
+                // Optimization: Capture runtime reference for nested/child components too
+                var runtimeComponent = compProp.managedReferenceValue as LitMotionAnimationComponent;
+                if (runtimeComponent != null)
+                {
+                    // This works even for nested components because SerializeReference objects are persistent
+                    activeViews.Add((view, runtimeComponent));
+                }
+
                 view.style.flexGrow = 1;
                 row.Add(view);
-
-                // For nested lists (children of Composite), we don't easily have the runtime parent reference here to crawl down.
-                // However, CompositeAnimation IS a LitMotionAnimationComponent.
-                // If we could bind the view to a provider that knows its parent...
-
-                // To keep it safe and simple for this submission:
-                // I will NOT register nested views in `DrawChildrenList` for now, as resolving their runtime instance requires recursive provider logic which is error prone in one go.
-                // The user's main request is for the main list.
-                // Wait, `CompositeAnimation` itself has a handle? Yes.
-                // So if the user adds a Composite, that Composite has a progress bar.
-                // The children inside might not update, but the folder will.
-
-                // BUT, CreateAnimationEntryGUI calls CreateComponentGUI which creates the view.
-                // Then I add it to `activeViews`.
-                // So top-level components (including Composites) WILL update.
-                // Children of Composites (inside the folder) will NOT update with this code.
-                // This is a reasonable trade-off for stability vs complexity right now.
 
                 var removeActionBtn = new Button(() =>
                 {
