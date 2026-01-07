@@ -25,6 +25,7 @@ namespace LitMotion.Animation
         internal Queue<LitMotionAnimationComponent> queue = new();
         internal FastListCore<LitMotionAnimationComponent> playingComponents;
         internal int activeParallelCount;
+        internal Action runtimeOnComplete; // For runtime callbacks
 
         [NonSerialized] public float currentTime;
         [NonSerialized] public float totalDuration;
@@ -39,7 +40,7 @@ namespace LitMotion.Animation
         {
             foreach (var anim in animations)
             {
-                if (anim.autoPlay) PlayAnimation(anim);
+                if (anim.autoPlay) PlayAnimation(anim, null);
             }
         }
 
@@ -47,21 +48,39 @@ namespace LitMotion.Animation
         {
             if (animations.Count > 0)
             {
-                PlayAnimation(animations[0]);
+                PlayAnimation(animations[0], null);
             }
         }
 
         public void Play(string id)
         {
+            Play(id, null);
+        }
+
+        public void Play(string id, Action onComplete)
+        {
             var anim = animations.Find(x => x.id == id);
             if (anim != null)
             {
-                PlayAnimation(anim);
+                PlayAnimation(anim, onComplete);
             }
             else
             {
                 Debug.LogWarning($"[LitMotionAnimator] Animation '{id}' not found on {gameObject.name}");
             }
+        }
+
+        public bool IsPlaying(string id)
+        {
+            var anim = animations.Find(x => x.id == id);
+            if (anim != null)
+            {
+                foreach (var component in anim.playingComponents.AsSpan())
+                {
+                    if (component.TrackedHandle.IsActive()) return true;
+                }
+            }
+            return false;
         }
 
         public void Pause(string id)
@@ -141,7 +160,7 @@ namespace LitMotion.Animation
             }
         }
 
-        void PlayAnimation(LitMotionAnimationEntry entry)
+        void PlayAnimation(LitMotionAnimationEntry entry, Action onComplete = null)
         {
             // Resume if active? Or Restart?
             // "Play" usually implies restart if finished, or resume if paused?
@@ -160,6 +179,10 @@ namespace LitMotion.Animation
                     component.OnResume();
                 }
             }
+
+            // Update callback if resuming? Or only if new play?
+            // If reusing logic, maybe just update the callback.
+            entry.runtimeOnComplete = onComplete;
 
             if (isPlaying) return;
 
@@ -226,6 +249,8 @@ namespace LitMotion.Animation
         void OnAnimationComplete(LitMotionAnimationEntry entry)
         {
             entry.onComplete?.Invoke();
+            entry.runtimeOnComplete?.Invoke();
+            entry.runtimeOnComplete = null; // Clear to prevent double invoke if re-used or stale
             entry.currentTime = entry.totalDuration; // Ensure bar is full
 
             // Handle Finish Logic
