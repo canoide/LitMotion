@@ -343,8 +343,6 @@ namespace LitMotion.Animation.Editor
                 if (displayNameProp != null)
                 {
                     view.Text = displayNameProp.stringValue;
-                    // Removed TrackPropertyValue (polling).
-                    // Will bind in the loop below via RegisterValueChangedCallback if PropertyField is created.
                 }
                 else
                 {
@@ -420,22 +418,9 @@ namespace LitMotion.Animation.Editor
                     {
                         DrawPresetBindings(p.objectReferenceValue as LitMotionAnimationPreset, property.FindPropertyRelative("bindings"), view.Foldout.contentContainer);
 
-                        var so = new SerializedObject(p.objectReferenceValue);
-                        so.Update();
-
-                        var modeProp = so.FindProperty("mode");
-                        if (modeProp != null)
-                        {
-                            var modeBox = new Box { style = { marginTop = 2, marginBottom = 2, paddingLeft = 5 } };
-                            modeBox.Add(new PropertyField(modeProp));
-                            view.Foldout.contentContainer.Add(modeBox);
-                        }
-
-                        var comps = so.FindProperty("components");
-                        if (comps != null)
-                        {
-                            DrawChildrenList(so, comps, view.Foldout.contentContainer);
-                        }
+                        // Removed embedded inspection of Preset components (new SerializedObject)
+                        // to prevent memory leaks and editor lag.
+                        // Users should edit the Preset asset directly.
                     }
                 }
 
