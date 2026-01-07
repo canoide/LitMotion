@@ -58,6 +58,9 @@ namespace LitMotion.Animation.Editor
             // Centralized Update Loop for Progress Bars - Highly Optimized
             root.schedule.Execute(() =>
             {
+                // Only update progress bars in Play Mode to save resources in Editor
+                if (!Application.isPlaying) return;
+
                 if (target == null) return;
 
                 foreach (var item in activeViews)
@@ -82,7 +85,7 @@ namespace LitMotion.Animation.Editor
                         item.view.Progress = 0f;
                     }
                 }
-            }).Every(20);
+            }).Every(30); // 30ms ~ 33fps, sufficient for UI feedback
 
             return root;
         }
