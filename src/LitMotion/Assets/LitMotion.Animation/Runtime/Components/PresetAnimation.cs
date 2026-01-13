@@ -29,7 +29,6 @@ namespace LitMotion.Animation.Components
 
             // Clone the preset to ensure unique component instances (stateful)
             runtimePreset = UnityEngine.Object.Instantiate(preset);
-            Debug.Log($"[PresetAnimation] Playing '{preset.name}' in mode: {runtimePreset.mode}");
 
             var builder = LSequence.Create();
 
@@ -57,6 +56,57 @@ namespace LitMotion.Animation.Components
             }
 
             return builder.Run();
+        }
+
+        public override void ResetValue()
+        {
+            // ResetValue is called on Finish or Manual Stop.
+            // If runtimePreset exists (active session), use it.
+            // But if called after OnStop cleared it, we can't really reset?
+            // Actually LitMotionAnimator calls OnStop/ResetValue.
+            // If we are "keeping" value, we don't call ResetValue.
+            // If we are "resetting", we call ResetValue.
+
+            // NOTE: If OnStop() clears runtimePreset, then ResetValue() won't work if called after OnStop().
+            // Ideally, ResetValue should be called BEFORE OnStop clears the instance.
+            // In LitMotionAnimator: Loop Reverse -> TryCancel -> ResetValue -> OnStop.
+            // So runtimePreset should still be valid.
+
+            if (runtimePreset != null && runtimePreset.components != null)
+            {
+                foreach (var component in runtimePreset.components)
+                {
+                    if (component != null) component.ResetValue();
+                }
+            }
+        }
+
+        public override float Duration
+        {
+            get
+            {
+                if (preset == null || preset.components == null) return 0f;
+                var total = 0f;
+                if (preset.mode == AnimationMode.Sequential)
+                {
+                    foreach (var child in preset.components)
+                    {
+                        if (child != null && child.Enabled) total += (child.Duration + child.Delay);
+                    }
+                }
+                else
+                {
+                    foreach (var child in preset.components)
+                    {
+                        if (child != null && child.Enabled)
+                        {
+                            var d = child.Duration + child.Delay;
+                            if (d > total) total = d;
+                        }
+                    }
+                }
+                return total;
+            }
         }
 
         public override void OnStop()

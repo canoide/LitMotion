@@ -15,8 +15,12 @@ namespace LitMotion.Animation.Editor
         VisualElement animationsListContainer;
         AddAnimationComponentDropdown dropdown;
 
+        System.Reflection.FieldInfo animationsFieldInfo;
+
         public override VisualElement CreateInspectorGUI()
         {
+            animationsFieldInfo = target.GetType().GetField("animations", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
             root = new VisualElement();
             animationsProp = serializedObject.FindProperty("animations");
 
@@ -53,6 +57,25 @@ namespace LitMotion.Animation.Editor
             RefreshAnimationsList();
 
             return root;
+        }
+
+        void OnEnable()
+        {
+            EditorApplication.update += OnEditorUpdate;
+        }
+
+        void OnDisable()
+        {
+            EditorApplication.update -= OnEditorUpdate;
+        }
+
+        void OnEditorUpdate()
+        {
+            if (Application.isPlaying)
+            {
+                // Force repaint to update progress bars
+                Repaint();
+            }
         }
 
         void RefreshAnimationsList()
@@ -110,6 +133,40 @@ namespace LitMotion.Animation.Editor
             autoPlayToggle.style.marginLeft = 5;
             autoPlayToggle.Bind(entryProp.serializedObject);
             header.Add(autoPlayToggle);
+
+            // Move Up Button
+            var upBtn = new Button(() => {
+                if (index > 0)
+                {
+                    animationsProp.MoveArrayElement(index, index - 1);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList();
+                }
+            })
+            {
+                text = "↑",
+                style = { width = 24, height = 24 },
+                tooltip = "Move Up"
+            };
+            upBtn.SetEnabled(index > 0);
+            header.Add(upBtn);
+
+            // Move Down Button
+            var downBtn = new Button(() => {
+                if (index < animationsProp.arraySize - 1)
+                {
+                    animationsProp.MoveArrayElement(index, index + 1);
+                    serializedObject.ApplyModifiedProperties();
+                    RefreshAnimationsList();
+                }
+            })
+            {
+                text = "↓",
+                style = { width = 24, height = 24 },
+                tooltip = "Move Down"
+            };
+            downBtn.SetEnabled(index < animationsProp.arraySize - 1);
+            header.Add(downBtn);
 
             // Per-animation controls
             var animId = idProp.stringValue; // Initial value
@@ -170,6 +227,45 @@ namespace LitMotion.Animation.Editor
             // Update ID local var when field changes so buttons work
             idField.RegisterValueChangedCallback(evt => animId = evt.newValue);
 
+            // Progress Bar (Runtime only)
+            if (Application.isPlaying)
+            {
+                var progressBar = new ProgressBar();
+                progressBar.style.marginTop = 2;
+                progressBar.style.height = 10;
+
+                // Use IMGUI container inside UI Toolkit for dynamic updates or update value in OnInspectorUpdate?
+                // UI Toolkit ProgressBar needs value updates.
+                // We can use a schedule.Execute but we are in Editor.update loop already calling Repaint.
+                // Let's bind it to a callback or update in OnGUI equivalent?
+                // Easier: Use IMGUI for the progress bar inside a VisualElement, or update the VisualElement style/value.
+
+                // Let's use a simpler approach: update value in a schedule
+                progressBar.schedule.Execute(() =>
+                {
+                    if (target == null || animationsFieldInfo == null) return;
+                    var anim = animationsFieldInfo.GetValue(target) as List<LitMotionAnimationEntry>;
+
+                    if (anim != null && index < anim.Count)
+                    {
+                        var entry = anim[index];
+                        if (entry.totalDuration > 0)
+                        {
+                            progressBar.value = entry.currentTime;
+                            progressBar.highValue = entry.totalDuration;
+                            progressBar.title = $"{entry.currentTime:F2}s / {entry.totalDuration:F2}s";
+                        }
+                        else
+                        {
+                            progressBar.value = 0;
+                            progressBar.title = "0.00s";
+                        }
+                    }
+                }).Every(30); // 30ms
+
+                box.Add(progressBar);
+            }
+
             // Foldout for details
             var foldout = new Foldout { text = "Settings & Actions" };
             foldout.viewDataKey = $"LitMotionAnim_{target.GetInstanceID()}_Entry_{index}";
@@ -180,6 +276,7 @@ namespace LitMotion.Animation.Editor
                 entryProp.serializedObject.ApplyModifiedProperties(); // Save expansion state
             });
 
+            foldout.Add(new PropertyField(entryProp.FindPropertyRelative("finishMode")) { label = "On Finish" });
             foldout.Add(new PropertyField(entryProp.FindPropertyRelative("mode")));
             foldout.Add(new PropertyField(entryProp.FindPropertyRelative("onComplete")));
 

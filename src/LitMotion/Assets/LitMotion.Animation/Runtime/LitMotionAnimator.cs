@@ -6,11 +6,18 @@ using UnityEngine.Events;
 
 namespace LitMotion.Animation
 {
+    public enum AnimationFinishMode
+    {
+        Keep,
+        Reset
+    }
+
     [Serializable]
     public class LitMotionAnimationEntry
     {
         public string id;
         public bool autoPlay;
+        public AnimationFinishMode finishMode;
         public AnimationMode mode;
         [SerializeReference] public LitMotionAnimationComponent[] components;
         public UnityEvent onComplete;
@@ -18,6 +25,10 @@ namespace LitMotion.Animation
         internal Queue<LitMotionAnimationComponent> queue = new();
         internal FastListCore<LitMotionAnimationComponent> playingComponents;
         internal int activeParallelCount;
+        internal Action runtimeOnComplete; // For runtime callbacks
+
+        [NonSerialized] public float currentTime;
+        [NonSerialized] public float totalDuration;
     }
 
     [AddComponentMenu("LitMotion Animator")]
@@ -29,7 +40,7 @@ namespace LitMotion.Animation
         {
             foreach (var anim in animations)
             {
-                if (anim.autoPlay) PlayAnimation(anim);
+                if (anim.autoPlay) PlayAnimation(anim, null);
             }
         }
 
@@ -37,21 +48,39 @@ namespace LitMotion.Animation
         {
             if (animations.Count > 0)
             {
-                PlayAnimation(animations[0]);
+                PlayAnimation(animations[0], null);
             }
         }
 
         public void Play(string id)
         {
+            Play(id, null);
+        }
+
+        public void Play(string id, Action onComplete)
+        {
             var anim = animations.Find(x => x.id == id);
             if (anim != null)
             {
-                PlayAnimation(anim);
+                PlayAnimation(anim, onComplete);
             }
             else
             {
                 Debug.LogWarning($"[LitMotionAnimator] Animation '{id}' not found on {gameObject.name}");
             }
+        }
+
+        public bool IsPlaying(string id)
+        {
+            var anim = animations.Find(x => x.id == id);
+            if (anim != null)
+            {
+                foreach (var component in anim.playingComponents.AsSpan())
+                {
+                    if (component.TrackedHandle.IsActive()) return true;
+                }
+            }
+            return false;
         }
 
         public void Pause(string id)
@@ -80,7 +109,58 @@ namespace LitMotion.Animation
             }
         }
 
-        void PlayAnimation(LitMotionAnimationEntry entry)
+        void Update()
+        {
+            foreach (var anim in animations)
+            {
+                var isPlaying = false;
+                foreach (var component in anim.playingComponents.AsSpan())
+                {
+                    if (component.TrackedHandle.IsActive() && component.TrackedHandle.PlaybackSpeed > 0)
+                    {
+                        isPlaying = true;
+                        break;
+                    }
+                }
+
+                if (isPlaying)
+                {
+                    anim.currentTime += Time.deltaTime;
+                    // Clamp to total duration to avoid visual overflow
+                    if (anim.totalDuration > 0 && anim.currentTime > anim.totalDuration)
+                    {
+                        anim.currentTime = anim.totalDuration;
+                    }
+                }
+            }
+        }
+
+        void CalculateDuration(LitMotionAnimationEntry entry)
+        {
+            entry.totalDuration = 0f;
+            if (entry.components == null) return;
+
+            if (entry.mode == AnimationMode.Sequential)
+            {
+                foreach (var c in entry.components)
+                {
+                    if (c != null && c.Enabled) entry.totalDuration += (c.Duration + c.Delay);
+                }
+            }
+            else // Parallel
+            {
+                foreach (var c in entry.components)
+                {
+                    if (c != null && c.Enabled)
+                    {
+                        var d = c.Duration + c.Delay;
+                        if (d > entry.totalDuration) entry.totalDuration = d;
+                    }
+                }
+            }
+        }
+
+        void PlayAnimation(LitMotionAnimationEntry entry, Action onComplete = null)
         {
             // Resume if active? Or Restart?
             // "Play" usually implies restart if finished, or resume if paused?
@@ -100,7 +180,15 @@ namespace LitMotion.Animation
                 }
             }
 
+            // Update callback if resuming? Or only if new play?
+            // If reusing logic, maybe just update the callback.
+            entry.runtimeOnComplete = onComplete;
+
             if (isPlaying) return;
+
+            // Calculate duration before starting
+            CalculateDuration(entry);
+            entry.currentTime = 0f;
 
             // Clear previous state
             entry.playingComponents.Clear();
@@ -152,11 +240,37 @@ namespace LitMotion.Animation
 
                     if (entry.activeParallelCount == 0)
                     {
-                        entry.onComplete?.Invoke();
-                        entry.playingComponents.Clear();
+                        OnAnimationComplete(entry);
                     }
                     break;
             }
+        }
+
+        void OnAnimationComplete(LitMotionAnimationEntry entry)
+        {
+            entry.onComplete?.Invoke();
+            entry.runtimeOnComplete?.Invoke();
+            entry.runtimeOnComplete = null; // Clear to prevent double invoke if re-used or stale
+            entry.currentTime = entry.totalDuration; // Ensure bar is full
+
+            // Handle Finish Logic
+            var span = entry.playingComponents.AsSpan();
+            span.Reverse();
+            foreach (var component in span)
+            {
+                var handle = component.TrackedHandle;
+                // Ensure handle is dead so object is unlocked
+                if (handle.IsActive()) handle.TryCancel();
+
+                if (entry.finishMode == AnimationFinishMode.Reset)
+                {
+                    component.ResetValue();
+                }
+
+                component.TrackedHandle = default;
+            }
+            entry.playingComponents.Clear();
+            entry.queue.Clear();
         }
 
         void MoveNextMotion(LitMotionAnimationEntry entry)
@@ -190,8 +304,7 @@ namespace LitMotion.Animation
             else
             {
                 // Sequence complete
-                entry.onComplete?.Invoke();
-                entry.playingComponents.Clear();
+                OnAnimationComplete(entry);
             }
         }
 
@@ -200,8 +313,7 @@ namespace LitMotion.Animation
             entry.activeParallelCount--;
             if (entry.activeParallelCount <= 0)
             {
-                entry.onComplete?.Invoke();
-                entry.playingComponents.Clear();
+                OnAnimationComplete(entry);
             }
         }
 
@@ -226,6 +338,8 @@ namespace LitMotion.Animation
             {
                 var handle = component.TrackedHandle;
                 handle.TryCancel();
+                // Manual stop always resets or uses legacy OnStop logic?
+                // Assuming Stop() is complete abort -> Reset.
                 component.OnStop();
                 component.TrackedHandle = handle;
             }
