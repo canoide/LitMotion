@@ -317,12 +317,15 @@ namespace LitMotion.Animation.Editor
                     {
                         progressBar.value = entry.currentTime;
                         progressBar.highValue = entry.totalDuration;
-                        progressBar.title = $"{entry.currentTime:F2}s / {entry.totalDuration:F2}s";
+                        // Avoid scientific notation and ensure it shows full duration at end
+                        float displayTime = entry.currentTime;
+                        if (displayTime > entry.totalDuration) displayTime = entry.totalDuration;
+                        progressBar.title = $"{displayTime:F2}s / {entry.totalDuration:F2}s";
                     }
                     else
                     {
                         progressBar.value = 0;
-                        progressBar.highValue = 1;
+                        progressBar.highValue = 0.001f; // Avoid divide by zero if internal
                         progressBar.title = "0.00s";
                     }
                 }

@@ -30,6 +30,7 @@ namespace LitMotion.Animation
 
         [NonSerialized] public float currentTime;
         [NonSerialized] public float totalDuration;
+        [NonSerialized] internal float completedDuration;
     }
 
     [AddComponentMenu("LitMotion Animator")]
@@ -116,21 +117,33 @@ namespace LitMotion.Animation
             foreach (var anim in animations)
             {
                 var isPlaying = false;
+                float currentOffset = 0f;
+
                 if (anim.playingComponents.AsArray() != null)
                 {
                     foreach (var component in anim.playingComponents.AsSpan())
                     {
-                        if (component.TrackedHandle.IsActive() && component.TrackedHandle.PlaybackSpeed > 0)
+                        var handle = component.TrackedHandle;
+                        if (handle.IsActive())
                         {
-                            isPlaying = true;
-                            break;
+                            if (handle.PlaybackSpeed > 0) isPlaying = true;
+
+                            if (anim.mode == AnimationMode.Sequential)
+                            {
+                                currentOffset = (float)handle.Time;
+                            }
+                            else // Parallel
+                            {
+                                float time = (float)handle.Time;
+                                if (time > currentOffset) currentOffset = time;
+                            }
                         }
                     }
                 }
 
                 if (isPlaying)
                 {
-                    anim.currentTime += Time.deltaTime;
+                    anim.currentTime = anim.completedDuration + currentOffset;
                     // Clamp to total duration to avoid visual overflow
                     if (anim.totalDuration > 0 && anim.currentTime > anim.totalDuration)
                     {
@@ -199,6 +212,7 @@ namespace LitMotion.Animation
             // Calculate duration before starting
             CalculateDuration(entry);
             entry.currentTime = 0f;
+            entry.completedDuration = 0f;
 
             // Clear previous state
             entry.playingComponents.Clear();
@@ -258,6 +272,7 @@ namespace LitMotion.Animation
 
         void OnAnimationComplete(LitMotionAnimationEntry entry)
         {
+            CalculateDuration(entry); // Refresh duration at end
             entry.onComplete?.Invoke();
             entry.runtimeOnComplete?.Invoke();
             entry.runtimeOnComplete = null; // Clear to prevent double invoke if re-used or stale
@@ -298,7 +313,11 @@ namespace LitMotion.Animation
                     if (isActive)
                     {
                         handle.Preserve();
-                        MotionManager.GetManagedDataRef(handle, false).OnCompleteAction += () => MoveNextMotion(entry);
+                        MotionManager.GetManagedDataRef(handle, false).OnCompleteAction += () =>
+                        {
+                            entry.completedDuration += (queuedComponent.Duration + queuedComponent.Delay);
+                            MoveNextMotion(entry);
+                        };
                     }
 
                     queuedComponent.TrackedHandle = handle;
@@ -306,6 +325,7 @@ namespace LitMotion.Animation
 
                     if (!isActive)
                     {
+                        entry.completedDuration += (queuedComponent.Duration + queuedComponent.Delay);
                         MoveNextMotion(entry);
                     }
                 }
