@@ -23,7 +23,7 @@ namespace LitMotion.Animation
         public UnityEvent onComplete;
 
         internal Queue<LitMotionAnimationComponent> queue;
-        internal FastListCore<LitMotionAnimationComponent> playingComponents;
+        internal FastListCore<LitMotionAnimationComponent> playingComponents = new();
         internal int activeParallelCount;
         internal Action runtimeOnComplete; // For runtime callbacks
 
@@ -75,6 +75,7 @@ namespace LitMotion.Animation
             var anim = animations.Find(x => x.id == id);
             if (anim != null)
             {
+                if (anim.playingComponents.AsArray() == null) return false;
                 foreach (var component in anim.playingComponents.AsSpan())
                 {
                     if (component.TrackedHandle.IsActive()) return true;
@@ -114,12 +115,15 @@ namespace LitMotion.Animation
             foreach (var anim in animations)
             {
                 var isPlaying = false;
-                foreach (var component in anim.playingComponents.AsSpan())
+                if (anim.playingComponents.AsArray() != null)
                 {
-                    if (component.TrackedHandle.IsActive() && component.TrackedHandle.PlaybackSpeed > 0)
+                    foreach (var component in anim.playingComponents.AsSpan())
                     {
-                        isPlaying = true;
-                        break;
+                        if (component.TrackedHandle.IsActive() && component.TrackedHandle.PlaybackSpeed > 0)
+                        {
+                            isPlaying = true;
+                            break;
+                        }
                     }
                 }
 
@@ -163,6 +167,7 @@ namespace LitMotion.Animation
         void PlayAnimation(LitMotionAnimationEntry entry, Action onComplete = null)
         {
             if (entry.queue == null) entry.queue = new();
+            if (entry.playingComponents.AsArray() == null) entry.playingComponents = new();
             // Resume if active? Or Restart?
             // "Play" usually implies restart if finished, or resume if paused?
             // For simplicity, let's assume Restart if it was stopped/finished, or just ensure it runs.
@@ -170,14 +175,17 @@ namespace LitMotion.Animation
             // If we follow LitMotionAnimation logic: Play() checks handles. If active, resume. If not, restart.
 
             var isPlaying = false;
-            foreach (var component in entry.playingComponents.AsSpan())
+            if (entry.playingComponents.AsArray() != null)
             {
-                var handle = component.TrackedHandle;
-                if (handle.IsActive())
+                foreach (var component in entry.playingComponents.AsSpan())
                 {
-                    handle.PlaybackSpeed = 1f;
-                    isPlaying = true;
-                    component.OnResume();
+                    var handle = component.TrackedHandle;
+                    if (handle.IsActive())
+                    {
+                        handle.PlaybackSpeed = 1f;
+                        isPlaying = true;
+                        component.OnResume();
+                    }
                 }
             }
 
@@ -255,28 +263,31 @@ namespace LitMotion.Animation
             entry.currentTime = entry.totalDuration; // Ensure bar is full
 
             // Handle Finish Logic
-            var span = entry.playingComponents.AsSpan();
-            span.Reverse();
-            foreach (var component in span)
+            if (entry.playingComponents.AsArray() != null)
             {
-                var handle = component.TrackedHandle;
-                // Ensure handle is dead so object is unlocked
-                if (handle.IsActive()) handle.TryCancel();
-
-                if (entry.finishMode == AnimationFinishMode.Reset)
+                var span = entry.playingComponents.AsSpan();
+                span.Reverse();
+                foreach (var component in span)
                 {
-                    component.ResetValue();
-                }
+                    var handle = component.TrackedHandle;
+                    // Ensure handle is dead so object is unlocked
+                    if (handle.IsActive()) handle.TryCancel();
 
-                component.TrackedHandle = default;
+                    if (entry.finishMode == AnimationFinishMode.Reset)
+                    {
+                        component.ResetValue();
+                    }
+
+                    component.TrackedHandle = default;
+                }
+                entry.playingComponents.Clear();
             }
-            entry.playingComponents.Clear();
-            entry.queue.Clear();
+            entry.queue?.Clear();
         }
 
         void MoveNextMotion(LitMotionAnimationEntry entry)
         {
-            if (entry.queue.TryDequeue(out var queuedComponent))
+            if (entry.queue != null && entry.queue.TryDequeue(out var queuedComponent))
             {
                 try
                 {
@@ -320,6 +331,7 @@ namespace LitMotion.Animation
 
         void PauseAnimation(LitMotionAnimationEntry entry)
         {
+            if (entry.playingComponents.AsArray() == null) return;
             foreach (var component in entry.playingComponents.AsSpan())
             {
                 var handle = component.TrackedHandle;
@@ -333,19 +345,22 @@ namespace LitMotion.Animation
 
         void StopAnimation(LitMotionAnimationEntry entry)
         {
-            var span = entry.playingComponents.AsSpan();
-            span.Reverse();
-            foreach (var component in span)
+            if (entry.playingComponents.AsArray() != null)
             {
-                var handle = component.TrackedHandle;
-                handle.TryCancel();
-                // Manual stop always resets or uses legacy OnStop logic?
-                // Assuming Stop() is complete abort -> Reset.
-                component.OnStop();
-                component.TrackedHandle = handle;
+                var span = entry.playingComponents.AsSpan();
+                span.Reverse();
+                foreach (var component in span)
+                {
+                    var handle = component.TrackedHandle;
+                    handle.TryCancel();
+                    // Manual stop always resets or uses legacy OnStop logic?
+                    // Assuming Stop() is complete abort -> Reset.
+                    component.OnStop();
+                    component.TrackedHandle = handle;
+                }
+                entry.playingComponents.Clear();
             }
-            entry.playingComponents.Clear();
-            entry.queue.Clear();
+            entry.queue?.Clear();
         }
 
         void OnDestroy()

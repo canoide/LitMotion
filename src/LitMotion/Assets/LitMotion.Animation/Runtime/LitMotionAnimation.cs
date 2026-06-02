@@ -21,7 +21,7 @@ namespace LitMotion.Animation
         public UnityEvent onComplete;
 
         readonly Queue<LitMotionAnimationComponent> queue = new();
-        FastListCore<LitMotionAnimationComponent> playingComponents;
+        FastListCore<LitMotionAnimationComponent> playingComponents = new();
         int activeParallelCount;
 
         [HideInInspector, SerializeField] bool playOnAwake = true;
@@ -79,6 +79,7 @@ namespace LitMotion.Animation
 
         public void Play()
         {
+            if (playingComponents.AsArray() == null) playingComponents = new();
             var isPlaying = false;
 
             foreach (var component in playingComponents.AsSpan())
@@ -156,6 +157,7 @@ namespace LitMotion.Animation
 
         public void Pause()
         {
+            if (playingComponents.AsArray() == null) return;
             foreach (var component in playingComponents.AsSpan())
             {
                 var handle = component.TrackedHandle;
@@ -169,17 +171,20 @@ namespace LitMotion.Animation
 
         public void Stop()
         {
-            var span = playingComponents.AsSpan();
-            span.Reverse();
-            foreach (var component in span)
+            if (playingComponents.AsArray() != null)
             {
-                var handle = component.TrackedHandle;
-                handle.TryCancel();
-                component.OnStop();
-                component.TrackedHandle = handle;
-            }
+                var span = playingComponents.AsSpan();
+                span.Reverse();
+                foreach (var component in span)
+                {
+                    var handle = component.TrackedHandle;
+                    handle.TryCancel();
+                    component.OnStop();
+                    component.TrackedHandle = handle;
+                }
 
-            playingComponents.Clear();
+                playingComponents.Clear();
+            }
             queue.Clear();
         }
 
@@ -194,6 +199,7 @@ namespace LitMotion.Animation
             get
             {
                 if (queue.Count > 0) return true;
+                if (playingComponents.AsArray() == null) return false;
 
                 foreach (var component in playingComponents.AsSpan())
                 {
@@ -210,6 +216,7 @@ namespace LitMotion.Animation
             get
             {
                 if (queue.Count > 0) return true;
+                if (playingComponents.AsArray() == null) return false;
 
                 foreach (var component in playingComponents.AsSpan())
                 {

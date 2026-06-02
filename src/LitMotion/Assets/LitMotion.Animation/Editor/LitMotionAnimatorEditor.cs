@@ -4,6 +4,7 @@ using UnityEditor.UIElements;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using UnityEditor.SceneManagement;
 
 namespace LitMotion.Animation.Editor
 {
@@ -14,6 +15,7 @@ namespace LitMotion.Animation.Editor
         VisualElement root;
         VisualElement animationsListContainer;
         AddAnimationComponentDropdown dropdown;
+        List<AnimationComponentView> componentViews = new();
 
         System.Reflection.FieldInfo animationsFieldInfo;
 
@@ -31,7 +33,14 @@ namespace LitMotion.Animation.Editor
             // Buttons to control
             var debugBox = new Box();
             debugBox.style.flexDirection = FlexDirection.Row;
-            debugBox.Add(new Button(() => ((LitMotionAnimator)target).Play()) { text = "Play Default" });
+            debugBox.Add(new Button(() => {
+                ((LitMotionAnimator)target).Play();
+                if (PrefabStageUtility.GetCurrentPrefabStage() != null)
+                {
+                    PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
+                    PrefabStage.prefabStageClosing += OnPrefabStageClosing;
+                }
+            }) { text = "Play Default" });
             debugBox.Add(new Button(() => ((LitMotionAnimator)target).StopAll()) { text = "Stop All" });
             root.Add(debugBox);
 
@@ -73,14 +82,70 @@ namespace LitMotion.Animation.Editor
         {
             if (Application.isPlaying)
             {
+                UpdateComponentProgress();
                 // Force repaint to update progress bars
                 Repaint();
             }
         }
 
+        void OnPrefabStageClosing(PrefabStage stage)
+        {
+            PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
+            foreach (var i in stage.prefabContentsRoot.GetComponentsInChildren<LitMotionAnimator>(true))
+            {
+                i.StopAll();
+            }
+        }
+
+        void UpdateComponentProgress()
+        {
+            if (target == null || animationsFieldInfo == null) return;
+            var anims = animationsFieldInfo.GetValue(target) as List<LitMotionAnimationEntry>;
+            if (anims == null) return;
+
+            int viewIdx = 0;
+            foreach (var entry in anims)
+            {
+                if (entry.components == null) continue;
+                foreach (var component in entry.components)
+                {
+                    UpdateComponentProgressRecursive(component, ref viewIdx);
+                }
+            }
+        }
+
+        void UpdateComponentProgressRecursive(LitMotionAnimationComponent component, ref int viewIdx)
+        {
+            if (component == null) return;
+            if (viewIdx >= componentViews.Count) return;
+
+            var view = componentViews[viewIdx];
+            var handle = component.TrackedHandle;
+            if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
+            {
+                view.Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
+            }
+            else
+            {
+                view.Progress = 0f;
+            }
+            viewIdx++;
+
+            if (component is Components.CompositeAnimation composite && composite.children != null)
+            {
+                foreach (var child in composite.children)
+                {
+                    UpdateComponentProgressRecursive(child, ref viewIdx);
+                }
+            }
+            // Note: PresetAnimation Progress is not handled recursively here because the inspector shows the bindings,
+            // and the individual components are within a runtime instance not directly accessible via the SerializedProperty path used for views.
+        }
+
         void RefreshAnimationsList()
         {
             animationsListContainer.Clear();
+            componentViews.Clear();
 
             // Check duplicates
             var ids = new HashSet<string>();
@@ -172,7 +237,15 @@ namespace LitMotion.Animation.Editor
             var animId = idProp.stringValue; // Initial value
 
             var playBtn = new Button(() => {
-                if (!string.IsNullOrEmpty(animId)) ((LitMotionAnimator)target).Play(animId);
+                if (!string.IsNullOrEmpty(animId))
+                {
+                    ((LitMotionAnimator)target).Play(animId);
+                    if (PrefabStageUtility.GetCurrentPrefabStage() != null)
+                    {
+                        PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
+                        PrefabStage.prefabStageClosing += OnPrefabStageClosing;
+                    }
+                }
             })
             {
                 style = {
@@ -227,44 +300,36 @@ namespace LitMotion.Animation.Editor
             // Update ID local var when field changes so buttons work
             idField.RegisterValueChangedCallback(evt => animId = evt.newValue);
 
-            // Progress Bar (Runtime only)
-            if (Application.isPlaying)
+            // Progress Bar
+            var progressBar = new ProgressBar();
+            progressBar.style.marginTop = 2;
+            progressBar.style.height = 16;
+            progressBar.showTitle = true;
+
+            progressBar.schedule.Execute(() =>
             {
-                var progressBar = new ProgressBar();
-                progressBar.style.marginTop = 2;
-                progressBar.style.height = 10;
+                if (target == null || animationsFieldInfo == null) return;
+                var anim = animationsFieldInfo.GetValue(target) as List<LitMotionAnimationEntry>;
 
-                // Use IMGUI container inside UI Toolkit for dynamic updates or update value in OnInspectorUpdate?
-                // UI Toolkit ProgressBar needs value updates.
-                // We can use a schedule.Execute but we are in Editor.update loop already calling Repaint.
-                // Let's bind it to a callback or update in OnGUI equivalent?
-                // Easier: Use IMGUI for the progress bar inside a VisualElement, or update the VisualElement style/value.
-
-                // Let's use a simpler approach: update value in a schedule
-                progressBar.schedule.Execute(() =>
+                if (anim != null && index < anim.Count)
                 {
-                    if (target == null || animationsFieldInfo == null) return;
-                    var anim = animationsFieldInfo.GetValue(target) as List<LitMotionAnimationEntry>;
-
-                    if (anim != null && index < anim.Count)
+                    var entry = anim[index];
+                    if (entry.totalDuration > 0)
                     {
-                        var entry = anim[index];
-                        if (entry.totalDuration > 0)
-                        {
-                            progressBar.value = entry.currentTime;
-                            progressBar.highValue = entry.totalDuration;
-                            progressBar.title = $"{entry.currentTime:F2}s / {entry.totalDuration:F2}s";
-                        }
-                        else
-                        {
-                            progressBar.value = 0;
-                            progressBar.title = "0.00s";
-                        }
+                        progressBar.value = entry.currentTime;
+                        progressBar.highValue = entry.totalDuration;
+                        progressBar.title = $"{entry.currentTime:F2}s / {entry.totalDuration:F2}s";
                     }
-                }).Every(30); // 30ms
+                    else
+                    {
+                        progressBar.value = 0;
+                        progressBar.highValue = 1;
+                        progressBar.title = "0.00s";
+                    }
+                }
+            }).Every(30);
 
-                box.Add(progressBar);
-            }
+            box.Add(progressBar);
 
             // Foldout for details
             var foldout = new Foldout { text = "Settings & Actions" };
@@ -297,6 +362,7 @@ namespace LitMotion.Animation.Editor
                 var view = CreateComponentGUI(compProp);
                 view.style.flexGrow = 1;
                 row.Add(view);
+                componentViews.Add(view);
 
                 var removeActionBtn = new Button(() =>
                 {
@@ -468,6 +534,7 @@ namespace LitMotion.Animation.Editor
                 var view = CreateComponentGUI(compProp);
                 view.style.flexGrow = 1;
                 row.Add(view);
+                componentViews.Add(view);
 
                 var removeActionBtn = new Button(() =>
                 {
