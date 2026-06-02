@@ -1,3 +1,4 @@
+using LitMotion;
 using System;
 using LitMotion.Adapters;
 using Unity.Collections;

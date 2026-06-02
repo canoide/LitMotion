@@ -304,7 +304,6 @@ namespace LitMotion.Animation.Editor
             var progressBar = new ProgressBar();
             progressBar.style.marginTop = 2;
             progressBar.style.height = 16;
-            progressBar.showTitle = true;
 
             progressBar.schedule.Execute(() =>
             {
