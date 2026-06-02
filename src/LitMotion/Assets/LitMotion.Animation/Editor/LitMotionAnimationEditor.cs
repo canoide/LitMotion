@@ -35,6 +35,7 @@ namespace LitMotion.Animation.Editor
             };
 
             root.Add(CreateSettingsPanel());
+            root.Add(CreateEventsPanel());
             componentRoot.Add(CreateComponentsPanel());
             root.Add(componentRoot);
             root.Add(CreateDebugPanel());
@@ -94,8 +95,16 @@ namespace LitMotion.Animation.Editor
         VisualElement CreateSettingsPanel()
         {
             var box = CreateBox("Settings");
+            box.Add(new PropertyField(serializedObject.FindProperty("id")));
             box.Add(new PropertyField(serializedObject.FindProperty("autoPlayMode")));
             box.Add(new PropertyField(serializedObject.FindProperty("animationMode")));
+            return box;
+        }
+
+        VisualElement CreateEventsPanel()
+        {
+            var box = CreateBox("Events");
+            box.Add(new PropertyField(serializedObject.FindProperty("onComplete")));
             return box;
         }
 
@@ -254,10 +263,13 @@ namespace LitMotion.Animation.Editor
 
             buttonGroup.schedule.Execute(() =>
             {
-                var enabled = !IsActive();
-                restartButton.SetEnabled(enabled);
-                stopButton.SetEnabled(enabled);
-                resetButton.SetEnabled(enabled);
+                var isActive = ((LitMotionAnimation)target).IsActive;
+                var isPlaying = ((LitMotionAnimation)target).IsPlaying;
+
+                playButton.SetEnabled(!isPlaying);
+                restartButton.SetEnabled(isActive);
+                stopButton.SetEnabled(isPlaying);
+                resetButton.SetEnabled(isActive);
             })
             .Every(10);
 

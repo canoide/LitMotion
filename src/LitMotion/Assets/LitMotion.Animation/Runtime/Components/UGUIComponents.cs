@@ -40,6 +40,19 @@ namespace LitMotion.Animation.Components
     }
 
     [Serializable]
+    [LitMotionAnimationComponentMenu("UI/Graphic/Alpha")]
+    public sealed class GraphicAlphaAnimation : FloatPropertyAnimationComponent<Graphic>
+    {
+        protected override float GetValue(Graphic target) => target.color.a;
+        protected override void SetValue(Graphic target, in float value)
+        {
+            var c = target.color;
+            c.a = value;
+            target.color = c;
+        }
+    }
+
+    [Serializable]
     [LitMotionAnimationComponentMenu("UI/Image/Color")]
     public sealed class ImageColorAnimation : ColorPropertyAnimationComponent<Image>
     {
