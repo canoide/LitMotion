@@ -1,3 +1,4 @@
+using LitMotion;
 namespace LitMotion.Animation
 {
     public enum AutoPlayMode

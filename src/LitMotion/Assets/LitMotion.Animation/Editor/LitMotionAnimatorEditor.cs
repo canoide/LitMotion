@@ -1,10 +1,11 @@
+using LitMotion;
 using UnityEngine.UIElements;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEditor.UIElements;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-using UnityEditor.SceneManagement;
 
 namespace LitMotion.Animation.Editor
 {
@@ -33,6 +34,7 @@ namespace LitMotion.Animation.Editor
             // Buttons to control
             var debugBox = new Box();
             debugBox.style.flexDirection = FlexDirection.Row;
+
             debugBox.Add(new Button(() => {
                 ((LitMotionAnimator)target).Play();
                 if (PrefabStageUtility.GetCurrentPrefabStage() != null)
@@ -78,22 +80,12 @@ namespace LitMotion.Animation.Editor
             EditorApplication.update -= OnEditorUpdate;
         }
 
-        void OnEditorUpdate()
+                void OnEditorUpdate()
         {
             if (Application.isPlaying)
             {
                 UpdateComponentProgress();
-                // Force repaint to update progress bars
                 Repaint();
-            }
-        }
-
-        void OnPrefabStageClosing(PrefabStage stage)
-        {
-            PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
-            foreach (var i in stage.prefabContentsRoot.GetComponentsInChildren<LitMotionAnimator>(true))
-            {
-                i.StopAll();
             }
         }
 
@@ -120,16 +112,24 @@ namespace LitMotion.Animation.Editor
             if (viewIdx >= componentViews.Count) return;
 
             var view = componentViews[viewIdx];
+            viewIdx++;
+
             var handle = component.TrackedHandle;
-            if (handle.IsActive() && !double.IsInfinity(handle.TotalDuration))
+            if (handle.IsActive())
             {
-                view.Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
+                if (!double.IsInfinity(handle.TotalDuration) && handle.TotalDuration > 0)
+                {
+                    view.Progress = Mathf.InverseLerp(0f, (float)handle.TotalDuration, (float)handle.Time);
+                }
+                else
+                {
+                    view.Progress = 0f;
+                }
             }
             else
             {
                 view.Progress = 0f;
             }
-            viewIdx++;
 
             if (component is Components.CompositeAnimation composite && composite.children != null)
             {
@@ -138,8 +138,7 @@ namespace LitMotion.Animation.Editor
                     UpdateComponentProgressRecursive(child, ref viewIdx);
                 }
             }
-            // Note: PresetAnimation Progress is not handled recursively here because the inspector shows the bindings,
-            // and the individual components are within a runtime instance not directly accessible via the SerializedProperty path used for views.
+        }
         }
 
         void RefreshAnimationsList()
@@ -300,7 +299,8 @@ namespace LitMotion.Animation.Editor
             // Update ID local var when field changes so buttons work
             idField.RegisterValueChangedCallback(evt => animId = evt.newValue);
 
-            // Progress Bar
+            // Progress Bar (Runtime only)
+                        // Progress Bar
             var progressBar = new ProgressBar();
             progressBar.style.marginTop = 2;
             progressBar.style.height = 16;
@@ -317,15 +317,14 @@ namespace LitMotion.Animation.Editor
                     {
                         progressBar.value = entry.currentTime;
                         progressBar.highValue = entry.totalDuration;
-                        // Avoid scientific notation and ensure it shows full duration at end
                         float displayTime = entry.currentTime;
                         if (displayTime > entry.totalDuration) displayTime = entry.totalDuration;
-                        progressBar.title = $"{displayTime:F2}s / {entry.totalDuration:F2}s";
+                        progressBar.title = string.Format("{0:F2}s / {1:F2}s", displayTime, entry.totalDuration);
                     }
                     else
                     {
                         progressBar.value = 0;
-                        progressBar.highValue = 0.001f; // Avoid divide by zero if internal
+                        progressBar.highValue = 0.001f;
                         progressBar.title = "0.00s";
                     }
                 }
@@ -364,7 +363,6 @@ namespace LitMotion.Animation.Editor
                 var view = CreateComponentGUI(compProp);
                 view.style.flexGrow = 1;
                 row.Add(view);
-                componentViews.Add(view);
 
                 var removeActionBtn = new Button(() =>
                 {
@@ -457,6 +455,7 @@ namespace LitMotion.Animation.Editor
                 }
 
                 view.Foldout.BindProperty(property);
+                componentViews.Add(view);
 
                 var p = property.Copy();
                 var endProperty = p.GetEndProperty();
@@ -536,7 +535,6 @@ namespace LitMotion.Animation.Editor
                 var view = CreateComponentGUI(compProp);
                 view.style.flexGrow = 1;
                 row.Add(view);
-                componentViews.Add(view);
 
                 var removeActionBtn = new Button(() =>
                 {
@@ -682,5 +680,12 @@ namespace LitMotion.Animation.Editor
             }
             return null;
         }
-    }
+        void OnPrefabStageClosing(PrefabStage stage)
+        {
+            PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
+            foreach (var i in stage.prefabContentsRoot.GetComponentsInChildren<LitMotionAnimator>(true))
+            {
+                i.StopAll();
+            }
+        }
 }

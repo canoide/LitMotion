@@ -1,3 +1,4 @@
+using LitMotion;
 #if LITMOTION_ANIMATION_UNITY_AUDIO
 
 using System;

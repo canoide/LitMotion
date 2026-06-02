@@ -116,24 +116,32 @@ namespace LitMotion.Animation
         {
             foreach (var anim in animations)
             {
-                var isPlaying = false;
+                bool active = (anim.queue != null && anim.queue.Count > 0);
                 float currentOffset = 0f;
 
                 if (anim.playingComponents.AsArray() != null)
                 {
-                    foreach (var component in anim.playingComponents.AsSpan())
+                    var span = anim.playingComponents.AsSpan();
+                    if (anim.mode == AnimationMode.Sequential)
                     {
-                        var handle = component.TrackedHandle;
-                        if (handle.IsActive())
+                        if (span.Length > 0)
                         {
-                            if (handle.PlaybackSpeed > 0) isPlaying = true;
-
-                            if (anim.mode == AnimationMode.Sequential)
+                            var handle = span[span.Length - 1].TrackedHandle;
+                            if (handle.IsActive())
                             {
+                                active = true;
                                 currentOffset = (float)handle.Time;
                             }
-                            else // Parallel
+                        }
+                    }
+                    else // Parallel
+                    {
+                        foreach (var component in span)
+                        {
+                            var handle = component.TrackedHandle;
+                            if (handle.IsActive())
                             {
+                                active = true;
                                 float time = (float)handle.Time;
                                 if (time > currentOffset) currentOffset = time;
                             }
@@ -141,14 +149,15 @@ namespace LitMotion.Animation
                     }
                 }
 
-                if (isPlaying)
+                if (active)
                 {
-                    anim.currentTime = anim.completedDuration + currentOffset;
-                    // Clamp to total duration to avoid visual overflow
-                    if (anim.totalDuration > 0 && anim.currentTime > anim.totalDuration)
-                    {
-                        anim.currentTime = anim.totalDuration;
-                    }
+                    float targetTime = anim.completedDuration + currentOffset;
+                    if (targetTime > anim.currentTime) anim.currentTime = targetTime;
+                }
+
+                if (anim.totalDuration > 0 && anim.currentTime > anim.totalDuration)
+                {
+                    anim.currentTime = anim.totalDuration;
                 }
             }
         }
@@ -182,11 +191,6 @@ namespace LitMotion.Animation
         {
             if (entry.queue == null) entry.queue = new();
             if (entry.playingComponents.AsArray() == null) entry.playingComponents = new();
-            // Resume if active? Or Restart?
-            // "Play" usually implies restart if finished, or resume if paused?
-            // For simplicity, let's assume Restart if it was stopped/finished, or just ensure it runs.
-            // But if it is running, do we restart it?
-            // If we follow LitMotionAnimation logic: Play() checks handles. If active, resume. If not, restart.
 
             var isPlaying = false;
             if (entry.playingComponents.AsArray() != null)
@@ -203,18 +207,14 @@ namespace LitMotion.Animation
                 }
             }
 
-            // Update callback if resuming? Or only if new play?
-            // If reusing logic, maybe just update the callback.
             entry.runtimeOnComplete = onComplete;
 
             if (isPlaying) return;
 
-            // Calculate duration before starting
             CalculateDuration(entry);
             entry.currentTime = 0f;
             entry.completedDuration = 0f;
 
-            // Clear previous state
             entry.playingComponents.Clear();
             entry.queue.Clear();
 
@@ -249,7 +249,6 @@ namespace LitMotion.Animation
                                 {
                                     handle.Preserve();
                                     entry.activeParallelCount++;
-                                    // We need to capture 'entry' for the callback
                                     MotionManager.GetManagedDataRef(handle, false).OnCompleteAction += () => OnParallelComponentComplete(entry);
                                 }
 
@@ -272,13 +271,12 @@ namespace LitMotion.Animation
 
         void OnAnimationComplete(LitMotionAnimationEntry entry)
         {
-            CalculateDuration(entry); // Refresh duration at end
+            CalculateDuration(entry);
             entry.onComplete?.Invoke();
             entry.runtimeOnComplete?.Invoke();
-            entry.runtimeOnComplete = null; // Clear to prevent double invoke if re-used or stale
-            entry.currentTime = entry.totalDuration; // Ensure bar is full
+            entry.runtimeOnComplete = null;
+            entry.currentTime = entry.totalDuration;
 
-            // Handle Finish Logic
             if (entry.playingComponents.AsArray() != null)
             {
                 var span = entry.playingComponents.AsSpan();
@@ -286,7 +284,6 @@ namespace LitMotion.Animation
                 foreach (var component in span)
                 {
                     var handle = component.TrackedHandle;
-                    // Ensure handle is dead so object is unlocked
                     if (handle.IsActive()) handle.TryCancel();
 
                     if (entry.finishMode == AnimationFinishMode.Reset)
@@ -336,7 +333,6 @@ namespace LitMotion.Animation
             }
             else
             {
-                // Sequence complete
                 OnAnimationComplete(entry);
             }
         }
@@ -374,14 +370,14 @@ namespace LitMotion.Animation
                 {
                     var handle = component.TrackedHandle;
                     handle.TryCancel();
-                    // Manual stop always resets or uses legacy OnStop logic?
-                    // Assuming Stop() is complete abort -> Reset.
                     component.OnStop();
-                    component.TrackedHandle = handle;
+                    component.TrackedHandle = default;
                 }
                 entry.playingComponents.Clear();
             }
             entry.queue?.Clear();
+            entry.currentTime = 0f;
+            entry.completedDuration = 0f;
         }
 
         void OnDestroy()

@@ -1,3 +1,4 @@
+using LitMotion;
 using System;
 using UnityEngine;
 #if LITMOTION_ANIMATION_RENDER_PIPELINES

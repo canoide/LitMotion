@@ -80,7 +80,6 @@ namespace LitMotion.Animation
 
         public void Play()
         {
-            if (playingComponents.AsArray() == null) playingComponents = new();
             var isPlaying = false;
 
             foreach (var component in playingComponents.AsSpan())
@@ -158,7 +157,6 @@ namespace LitMotion.Animation
 
         public void Pause()
         {
-            if (playingComponents.AsArray() == null) return;
             foreach (var component in playingComponents.AsSpan())
             {
                 var handle = component.TrackedHandle;
@@ -172,20 +170,17 @@ namespace LitMotion.Animation
 
         public void Stop()
         {
-            if (playingComponents.AsArray() != null)
+            var span = playingComponents.AsSpan();
+            span.Reverse();
+            foreach (var component in span)
             {
-                var span = playingComponents.AsSpan();
-                span.Reverse();
-                foreach (var component in span)
-                {
-                    var handle = component.TrackedHandle;
-                    handle.TryCancel();
-                    component.OnStop();
-                    component.TrackedHandle = handle;
-                }
-
-                playingComponents.Clear();
+                var handle = component.TrackedHandle;
+                handle.TryCancel();
+                component.OnStop();
+                component.TrackedHandle = handle;
             }
+
+            playingComponents.Clear();
             queue.Clear();
         }
 
@@ -200,7 +195,6 @@ namespace LitMotion.Animation
             get
             {
                 if (queue.Count > 0) return true;
-                if (playingComponents.AsArray() == null) return false;
 
                 foreach (var component in playingComponents.AsSpan())
                 {
@@ -217,7 +211,6 @@ namespace LitMotion.Animation
             get
             {
                 if (queue.Count > 0) return true;
-                if (playingComponents.AsArray() == null) return false;
 
                 foreach (var component in playingComponents.AsSpan())
                 {

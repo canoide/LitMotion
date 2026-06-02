@@ -1,3 +1,4 @@
+using LitMotion;
 
 using System;
 using LitMotion.Adapters;
@@ -5,7 +6,6 @@ using UnityEngine;
 
 namespace LitMotion.Animation.Components
 {
-    [Serializable]
     public abstract class TransformPositionAnimationBase<TOptions, TAdapter> : PropertyAnimationComponent<Transform, Vector3, TOptions, TAdapter>
         where TOptions : unmanaged, IMotionOptions
         where TAdapter : unmanaged, IMotionAdapter<Vector3, TOptions>
@@ -41,7 +41,6 @@ namespace LitMotion.Animation.Components
     [LitMotionAnimationComponentMenu("Transform/Position (Shake)")]
     public sealed class TransformPositionShakeAnimation : TransformPositionAnimationBase<ShakeOptions, Vector3ShakeMotionAdapter> { }
 
-    [Serializable]
     public abstract class TransformRotationAnimationBase<TOptions, TAdapter> : PropertyAnimationComponent<Transform, Vector3, TOptions, TAdapter>
         where TOptions : unmanaged, IMotionOptions
         where TAdapter : unmanaged, IMotionAdapter<Vector3, TOptions>
@@ -77,7 +76,6 @@ namespace LitMotion.Animation.Components
     [LitMotionAnimationComponentMenu("Transform/Rotation (Shake)")]
     public sealed class TransformRotationShakeAnimation : TransformRotationAnimationBase<ShakeOptions, Vector3ShakeMotionAdapter> { }
 
-    [Serializable]
     public abstract class TransformScaleAnimationBase<TOptions, TAdapter> : PropertyAnimationComponent<Transform, Vector3, TOptions, TAdapter>
         where TOptions : unmanaged, IMotionOptions
         where TAdapter : unmanaged, IMotionAdapter<Vector3, TOptions>
