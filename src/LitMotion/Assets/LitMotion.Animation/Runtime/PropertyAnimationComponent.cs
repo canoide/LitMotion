@@ -1,3 +1,4 @@
+using LitMotion;
 using System;
 using LitMotion.Adapters;
 using Unity.Collections;
@@ -5,7 +6,6 @@ using UnityEngine;
 
 namespace LitMotion.Animation
 {
-    [Serializable]
     public abstract class PropertyAnimationComponent<TObject, TValue, TOptions, TAdapter> : LitMotionAnimationComponent
         where TObject : UnityEngine.Object
         where TValue : unmanaged
@@ -13,19 +13,34 @@ namespace LitMotion.Animation
         where TAdapter : unmanaged, IMotionAdapter<TValue, TOptions>
     {
         [SerializeField] TObject target;
+        [SerializeField, HideInInspector] string bindingId;
         [SerializeField] SerializableMotionSettings<TValue, TOptions> settings;
         [SerializeField] bool relative;
 
         TValue startValue;
 
-        public override void OnStop()
+        public override float Duration => settings.Duration;
+        public override float Delay => settings.Delay;
+
+        public override void ResetValue()
         {
             if (target == null) return;
             SetValue(target, startValue);
         }
 
+        public override void OnStop()
+        {
+            ResetValue();
+        }
+
         public override MotionHandle Play()
         {
+            if (target == null)
+            {
+                Debug.LogWarning($"[LitMotion] Target is null in {GetType().Name}. Please assign a target in the Inspector or check your Preset bindings.");
+                return default;
+            }
+
             startValue = GetValue(target);
 
             MotionHandle handle;
@@ -35,7 +50,8 @@ namespace LitMotion.Animation
                 handle = LMotion.Create<TValue, TOptions, TAdapter>(settings)
                     .Bind(this, (x, state) =>
                     {
-                        state.SetValue(target, state.GetRelativeValue(state.startValue, x));
+                        if (state.target == null) return;
+                        state.SetValue(state.target, state.GetRelativeValue(state.startValue, x));
                     });
             }
             else
@@ -43,7 +59,8 @@ namespace LitMotion.Animation
                 handle = LMotion.Create<TValue, TOptions, TAdapter>(settings)
                     .Bind(this, (x, state) =>
                     {
-                        state.SetValue(target, x);
+                        if (state.target == null) return;
+                        state.SetValue(state.target, x);
                     });
             }
 

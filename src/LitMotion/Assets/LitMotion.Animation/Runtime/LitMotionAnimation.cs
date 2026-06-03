@@ -1,25 +1,16 @@
+using LitMotion;
 using System;
 using System.Collections.Generic;
 using LitMotion.Collections;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace LitMotion.Animation
 {
     [AddComponentMenu("LitMotion Animation")]
     public sealed class LitMotionAnimation : MonoBehaviour, ISerializationCallbackReceiver
     {
-        enum AutoPlayMode
-        {
-            None,
-            OnStart,
-            OnEnable
-        }
-
-        enum AnimationMode
-        {
-            Parallel,
-            Sequential
-        }
+        public string id;
 
         [SerializeField] AutoPlayMode autoPlayMode = AutoPlayMode.OnStart;
         [SerializeField] AnimationMode animationMode;
@@ -27,8 +18,12 @@ namespace LitMotion.Animation
         [SerializeReference]
         LitMotionAnimationComponent[] components;
 
+        [Space]
+        public UnityEvent onComplete;
+
         readonly Queue<LitMotionAnimationComponent> queue = new();
-        FastListCore<LitMotionAnimationComponent> playingComponents;
+        FastListCore<LitMotionAnimationComponent> playingComponents = new();
+        int activeParallelCount;
 
         [HideInInspector, SerializeField] bool playOnAwake = true;
         [HideInInspector, SerializeField] int version;
@@ -72,8 +67,14 @@ namespace LitMotion.Animation
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogException(ex, context: this);
+                    Debug.LogException(ex);
                 }
+            }
+            else
+            {
+                // Sequence complete
+                onComplete?.Invoke();
+                playingComponents.Clear();
             }
         }
 
@@ -110,6 +111,7 @@ namespace LitMotion.Animation
                     MoveNextMotion();
                     break;
                 case AnimationMode.Parallel:
+                    activeParallelCount = 0;
                     foreach (var component in components)
                     {
                         if (component == null) continue;
@@ -123,16 +125,33 @@ namespace LitMotion.Animation
                             if (handle.IsActive())
                             {
                                 handle.Preserve();
+                                activeParallelCount++;
+                                MotionManager.GetManagedDataRef(handle, false).OnCompleteAction += OnParallelComponentComplete;
                             }
 
                             playingComponents.Add(component);
                         }
                         catch (Exception ex)
                         {
-                            Debug.LogException(ex, context: this);
+                            Debug.LogException(ex);
                         }
                     }
+
+                    if (activeParallelCount == 0)
+                    {
+                        onComplete?.Invoke();
+                    }
                     break;
+            }
+        }
+
+        void OnParallelComponentComplete()
+        {
+            activeParallelCount--;
+            if (activeParallelCount <= 0)
+            {
+                onComplete?.Invoke();
+                playingComponents.Clear();
             }
         }
 

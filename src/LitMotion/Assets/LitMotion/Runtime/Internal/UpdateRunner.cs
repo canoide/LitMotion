@@ -73,13 +73,7 @@ namespace LitMotion
 
                     var status = state.Status;
                     ref var managedData = ref managedDataSpan[i];
-                    
-                    bool isPlaying   = status == MotionStatus.Playing;
-                    bool isCompleted = status == MotionStatus.Completed;
-                    bool isDelayed   = status == MotionStatus.Delayed;
-                    bool canUpdate = isPlaying || isCompleted || (isDelayed && !managedData.SkipValuesDuringDelay);
-                    bool loopComplete = (isPlaying || isCompleted || isDelayed) && state.WasLoopCompleted;
-                    if (canUpdate)
+                    if (status is MotionStatus.Playing or MotionStatus.Completed || (status == MotionStatus.Delayed && !managedData.SkipValuesDuringDelay))
                     {
                         try
                         {
@@ -94,9 +88,17 @@ namespace LitMotion
                                 managedData.OnCancelAction?.Invoke();
                             }
                         }
+
+                        if (state.WasLoopCompleted)
+                        {
+                            managedData.InvokeOnLoopComplete(state.CompletedLoops);
+                        }
+
+                        if (status is MotionStatus.Completed && state.WasStatusChanged)
+                        {
+                            managedData.InvokeOnComplete();
+                        }
                     }
-                    if (loopComplete) managedData.InvokeOnLoopComplete(state.CompletedLoops);
-                    if (isCompleted && state.WasStatusChanged) managedData.InvokeOnComplete();
                 }
             }
 
