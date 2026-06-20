@@ -1,3 +1,4 @@
+using LitMotion;
 #if LITMOTION_ANIMATION_TMP
 
 using System;

@@ -1,3 +1,4 @@
+using LitMotion;
 #if LITMOTION_ANIMATION_UGUI
 
 using System;
@@ -37,6 +38,19 @@ namespace LitMotion.Animation.Components
     {
         protected override Color GetValue(Graphic target) => target.color;
         protected override void SetValue(Graphic target, in Color value) => target.color = value;
+    }
+
+    [Serializable]
+    [LitMotionAnimationComponentMenu("UI/Graphic/Alpha")]
+    public sealed class GraphicAlphaAnimation : FloatPropertyAnimationComponent<Graphic>
+    {
+        protected override float GetValue(Graphic target) => target.color.a;
+        protected override void SetValue(Graphic target, in float value)
+        {
+            var c = target.color;
+            c.a = value;
+            target.color = c;
+        }
     }
 
     [Serializable]
